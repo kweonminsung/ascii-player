@@ -43,10 +43,10 @@ func NewPlayer(filename string, fps int, loop bool, resolution string, color boo
 
 	// Create status view for controls
 	statusView := tview.NewTextView().
-		SetText("Controls: [SPACE] Pause/Resume | [R] Restart | [Q/ESC] Quit").
+		SetText("Loading...").
 		SetTextAlign(tview.AlignCenter).
 		SetDynamicColors(true)
-	statusView.SetBorder(true).SetTitle("Controls")
+	statusView.SetBorder(true).SetTitle("Status")
 
 	return &Player{
 		app:          app,
@@ -101,6 +101,9 @@ func (p *Player) Play() error {
 	// Start playback loop
 	go p.playbackLoop()
 
+	// Initialize status view
+	go p.updateStatusView()
+
 	// Run the application
 	return p.app.Run()
 }
@@ -120,20 +123,53 @@ func (p *Player) setupKeyBindings() {
 			case ' ': // Space bar to pause/resume
 				p.isPaused = !p.isPaused
 				go p.displayCurrentFrame() // 비동기적으로 호출
+				go p.updateStatusView()    // 상태 업데이트
 				return nil
 			case 'r', 'R': // Restart
-				p.currentFrame = 0
-				p.isPaused = false
-				// 이미 재생 중이면 새로운 goroutine을 생성하지 않음
-				if !p.isPlaying {
-					p.isPlaying = true
-					go p.playbackLoop()
+				// 재생이 끝난 상태가 아닐 때만 재시작 처리
+				if p.isPlaying || p.isPaused {
+					p.currentFrame = 0
+					p.isPaused = false
+					// 이미 재생 중이면 새로운 goroutine을 생성하지 않음
+					if !p.isPlaying {
+						p.isPlaying = true
+						go p.playbackLoop()
+					}
+					go p.displayCurrentFrame() // 비동기적으로 화면 업데이트
+					go p.updateStatusView()    // 상태 업데이트
 				}
-				go p.displayCurrentFrame() // 비동기적으로 화면 업데이트
 				return nil
 			}
 		}
 		return event
+	})
+}
+
+// updateStatusView updates the status view with current information
+func (p *Player) updateStatusView() {
+	status := "PLAYING"
+	if p.isPaused {
+		status = "PAUSED"
+	}
+	if !p.isPlaying {
+		status = "STOPPED"
+	}
+
+	mode := "Normal"
+	if p.loop {
+		mode = "Loop"
+	}
+
+	statusText := fmt.Sprintf("Mode: %s | Frame: %d/%d | FPS: %d | Status: %s | Resolution: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [Q/ESC] Quit",
+		mode,
+		p.currentFrame+1,
+		len(p.frames),
+		p.fps,
+		status,
+		p.resolution)
+
+	p.app.QueueUpdateDraw(func() {
+		p.statusView.SetText(statusText)
 	})
 }
 
@@ -150,6 +186,7 @@ func (p *Player) playbackLoop() {
 		}
 		if !p.isPaused {
 			p.displayCurrentFrame()
+			p.updateStatusView() // 프레임 변경 시 상태 업데이트
 			p.currentFrame++
 
 			if p.currentFrame >= len(p.frames) {
@@ -158,6 +195,7 @@ func (p *Player) playbackLoop() {
 				} else {
 					p.isPlaying = false
 					p.displayEndMessage()
+					p.updateStatusView() // 종료 시 상태 업데이트
 					return
 				}
 			}
@@ -168,21 +206,9 @@ func (p *Player) playbackLoop() {
 // displayCurrentFrame shows the current frame
 func (p *Player) displayCurrentFrame() {
 	if p.currentFrame < len(p.frames) {
-		status := "PLAYING"
-		if p.isPaused {
-			status = "PAUSED"
-		}
-
-		content := fmt.Sprintf("%s\n\n"+
-			"═══════════════════════════════════════════════════════════\n"+
-			"Frame: %d/%d | FPS: %d | Status: %s | Resolution: %s\n"+
-			"═══════════════════════════════════════════════════════════",
+		content := fmt.Sprintf("%s\n\n%s",
 			p.frames[p.currentFrame],
-			p.currentFrame+1,
-			len(p.frames),
-			p.fps,
-			status,
-			p.resolution)
+			"═══════════════════════════════════════════════════════════")
 
 		p.app.QueueUpdateDraw(func() {
 			p.textView.SetText(content)
@@ -192,18 +218,31 @@ func (p *Player) displayCurrentFrame() {
 
 // displayEndMessage shows the end message
 func (p *Player) displayEndMessage() {
-	content := fmt.Sprintf("╔════════════════════════════════════════════════════════════╗\n"+
-		"║                     PLAYBACK FINISHED                     ║\n"+
-		"╠════════════════════════════════════════════════════════════╣\n"+
-		"║ File: %-49s║\n"+
-		"║ Total frames: %-40d║\n"+
-		"║                                                            ║\n"+
-		"║ Press [R] to restart or [Q] to quit                       ║\n"+
-		"╚════════════════════════════════════════════════════════════╝",
-		p.filename, len(p.frames))
+	// Create a modal for end message
+	modal := tview.NewModal().
+		SetText(fmt.Sprintf("Playback Finished!\n\nFile: %s\nTotal frames: %d\n\nPress [R] to restart or [Q] to quit",
+			p.filename, len(p.frames))).
+		AddButtons([]string{"Restart (R)", "Quit (Q)"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonIndex == 0 || buttonLabel == "Restart (R)" {
+				// Restart
+				p.currentFrame = 0
+				p.isPaused = false
+				p.isPlaying = true
+				p.app.SetRoot(tview.NewFlex().
+					SetDirection(tview.FlexRow).
+					AddItem(p.textView, 0, 1, true).
+					AddItem(p.statusView, 3, 0, false), true)
+				go p.playbackLoop()
+				go p.updateStatusView()
+			} else {
+				// Quit
+				p.app.Stop()
+			}
+		})
 
 	p.app.QueueUpdateDraw(func() {
-		p.textView.SetText(content)
+		p.app.SetRoot(modal, true)
 	})
 }
 
