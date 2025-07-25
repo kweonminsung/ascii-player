@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/kweonminsung/ascii-player/pkg/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -24,22 +25,26 @@ var playCmd = &cobra.Command{
 		fps, _ := cmd.Flags().GetInt("fps")
 		loop, _ := cmd.Flags().GetBool("loop")
 		resolution, _ := cmd.Flags().GetString("resolution")
+		color, _ := cmd.Flags().GetBool("color")
 
-		fmt.Printf("Playing ASCII animations from MP4: %s\n", filename)
-		fmt.Printf("FPS: %d, Loop: %t, Resolution: %s\n", fps, loop, resolution)
+		fmt.Printf("Starting ASCII player for MP4: %s\n", filename)
+		fmt.Printf("Settings - FPS: %d, Loop: %t, Resolution: %s, Color: %t\n", fps, loop, resolution, color)
 
-		// TODO: Implement MP4 to ASCII conversion and playback
-		// This would involve:
-		// 1. Extract frames from MP4 using ffmpeg or similar
-		// 2. Convert each frame to ASCII art
-		// 3. Display frames in sequence at specified FPS
-		// 4. Handle looping if enabled
+		// Create and start TUI player
+		player := tui.NewPlayer(filename, fps, loop, resolution, color)
 
-		fmt.Println("MP4 playback functionality will be implemented here")
+		err := player.Play()
+		if err != nil {
+			fmt.Printf("Error during playback: %v\n", err)
+			return
+		}
+
 	},
 }
 
 func init() {
+	rootCmd.AddCommand(playCmd)
+	playCmd.Flags().BoolP("color", "c", false, "Enable colored output")
 	playCmd.Flags().IntP("fps", "f", 30, "Frames per second for playback")
 	playCmd.Flags().BoolP("loop", "l", false, "Loop the animation")
 	playCmd.Flags().StringP("resolution", "r", "high", "Resolution quality (low, medium, high, ultra)")
