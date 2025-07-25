@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// --- YouTube 스트리밍 처리 예제 ---
-	youtubeURL := "https://www.youtube.com/watch?v=dQw4w9WgXcQ" // Rick Astley - Never Gonna Give You Up
+	youtubeURL := "https://www.youtube.com/watch?v=OZytLLasceA" // Rick Astley - Never Gonna Give You Up
 	log.Printf("--- Processing YouTube stream: %s ---\n", youtubeURL)
 
 	// 1. FrameExtractor 생성
@@ -32,7 +32,7 @@ func main() {
 	}
 
 	// ASCII 변환기 생성
-	converter := ascii.NewConverter("")
+	converter := ascii.NewGrayConverter("")
 
 	if !frame.Empty() {
 		log.Printf("Successfully got frame at %v. Frame size: %s\n", seekTime, frame.Size())
