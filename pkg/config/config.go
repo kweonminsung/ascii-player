@@ -12,6 +12,7 @@ import (
 
 // Data represents the structure of the configuration file
 type Data struct {
+	Mode       string `json:"mode"` // e.g., "ascii", "pixel"
 	Color      bool   `json:"color"`
 	FPS        int    `json:"fps"`
 	Loop       bool   `json:"loop"`
@@ -44,6 +45,7 @@ func (m *Manager) GetConfigPath() string {
 // CreateDefault creates a default configuration
 func (m *Manager) CreateDefault() *Data {
 	return &Data{
+		Mode:       "ascii",
 		Color:      false,
 		FPS:        30,
 		Loop:       false,
@@ -129,10 +131,11 @@ func (m *Manager) GetFileModTime() (time.Time, error) {
 
 // Display formats and returns the configuration as a string
 func (config *Data) Display() string {
-	return fmt.Sprintf(`Color:         %t
+	return fmt.Sprintf(`Mode:          %s
+Color:         %t
 FPS:           %d
 Loop:          %t
-Resolution:    %s`, config.Color, config.FPS, config.Loop, config.Resolution,
+Resolution:    %s`, config.Mode, config.Color, config.FPS, config.Loop, config.Resolution,
 	)
 }
 

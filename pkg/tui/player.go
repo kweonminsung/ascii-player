@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 // Player represents the TUI player
 type Player struct {
-	tui          *TUI
+	app          *tview.Application
+	textView     *tview.TextView
+	statusView   *tview.TextView
 	fps          int
 	loop         bool
 	resolution   string
@@ -26,13 +29,29 @@ type Player struct {
 
 // NewPlayer creates a new TUI player
 func NewPlayer(filename string, fps int, loop bool, resolution string, color bool) *Player {
-	tui, err := NewTUI()
-	if err != nil {
-		return nil // In case of error, return nil (should handle this better)
-	}
+	app := tview.NewApplication()
+
+	// Create text view for content
+	textView := tview.NewTextView().
+		SetDynamicColors(color).
+		SetRegions(true).
+		SetWordWrap(false).
+		SetScrollable(false)
+	textView.SetBorder(true).
+		SetTitle(fmt.Sprintf(" ASCII Player - %s ", filename)).
+		SetTitleAlign(tview.AlignLeft)
+
+	// Create status view for controls
+	statusView := tview.NewTextView().
+		SetText("Controls: [SPACE] Pause/Resume | [R] Restart | [Q/ESC] Quit").
+		SetTextAlign(tview.AlignCenter).
+		SetDynamicColors(true)
+	statusView.SetBorder(true).SetTitle("Controls")
 
 	return &Player{
-		tui:          tui,
+		app:          app,
+		textView:     textView,
+		statusView:   statusView,
 		fps:          fps,
 		loop:         loop,
 		resolution:   resolution,
@@ -61,11 +80,20 @@ func (p *Player) LoadFrames() error {
 
 // Play starts the TUI player
 func (p *Player) Play() error {
-	defer p.tui.Close()
-
 	if err := p.LoadFrames(); err != nil {
 		return fmt.Errorf("failed to load frames: %v", err)
 	}
+
+	// Set up key bindings
+	p.setupKeyBindings()
+
+	// Set up the main layout
+	flex := tview.NewFlex().
+		SetDirection(tview.FlexRow).
+		AddItem(p.textView, 0, 1, true).
+		AddItem(p.statusView, 3, 0, false)
+
+	p.app.SetRoot(flex, true)
 
 	// Handle interrupt signals
 	go p.handleInterrupt()
@@ -73,40 +101,65 @@ func (p *Player) Play() error {
 	// Start playback loop
 	go p.playbackLoop()
 
-	// Handle keyboard input
-	p.handleInput()
-
-	return nil
+	// Run the application
+	return p.app.Run()
 }
 
-// setupKeyBindings and createControlsView are no longer needed with basic TUI
+// setupKeyBindings sets up keyboard controls
+func (p *Player) setupKeyBindings() {
+	p.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape, tcell.KeyCtrlC:
+			p.app.Stop()
+			return nil
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'q', 'Q':
+				p.app.Stop()
+				return nil
+			case ' ': // Space bar to pause/resume
+				p.isPaused = !p.isPaused
+				go p.displayCurrentFrame() // 비동기적으로 호출
+				return nil
+			case 'r', 'R': // Restart
+				p.currentFrame = 0
+				p.isPaused = false
+				// 이미 재생 중이면 새로운 goroutine을 생성하지 않음
+				if !p.isPlaying {
+					p.isPlaying = true
+					go p.playbackLoop()
+				}
+				go p.displayCurrentFrame() // 비동기적으로 화면 업데이트
+				return nil
+			}
+		}
+		return event
+	})
+}
 
-// playFrames handles the frame playback loop
+// playbackLoop handles the frame playback loop
 func (p *Player) playbackLoop() {
 	ticker := time.NewTicker(time.Second / time.Duration(p.fps))
 	defer ticker.Stop()
 
 	p.isPlaying = true
 
-	for p.isPlaying {
-		select {
-		case <-ticker.C:
-			if !p.isPaused {
-				p.displayCurrentFrame()
-				p.currentFrame++
+	for range ticker.C {
+		if !p.isPlaying {
+			return
+		}
+		if !p.isPaused {
+			p.displayCurrentFrame()
+			p.currentFrame++
 
-				if p.currentFrame >= len(p.frames) {
-					if p.loop {
-						p.currentFrame = 0
-					} else {
-						p.isPlaying = false
-						p.displayEndMessage()
-					}
+			if p.currentFrame >= len(p.frames) {
+				if p.loop {
+					p.currentFrame = 0
+				} else {
+					p.isPlaying = false
+					p.displayEndMessage()
+					return
 				}
-			}
-		default:
-			if !p.isPlaying {
-				return
 			}
 		}
 	}
@@ -123,7 +176,6 @@ func (p *Player) displayCurrentFrame() {
 		content := fmt.Sprintf("%s\n\n"+
 			"═══════════════════════════════════════════════════════════\n"+
 			"Frame: %d/%d | FPS: %d | Status: %s | Resolution: %s\n"+
-			"Controls: [SPACE] Pause/Resume | [R] Restart | [Q] Quit\n"+
 			"═══════════════════════════════════════════════════════════",
 			p.frames[p.currentFrame],
 			p.currentFrame+1,
@@ -131,7 +183,10 @@ func (p *Player) displayCurrentFrame() {
 			p.fps,
 			status,
 			p.resolution)
-		p.tui.Display(content)
+
+		p.app.QueueUpdateDraw(func() {
+			p.textView.SetText(content)
+		})
 	}
 }
 
@@ -146,51 +201,17 @@ func (p *Player) displayEndMessage() {
 		"║ Press [R] to restart or [Q] to quit                       ║\n"+
 		"╚════════════════════════════════════════════════════════════╝",
 		p.filename, len(p.frames))
-	p.tui.Display(content)
+
+	p.app.QueueUpdateDraw(func() {
+		p.textView.SetText(content)
+	})
 }
 
-// showCurrentFrame displays the current frame
-func (p *Player) showCurrentFrame() {
-	p.displayCurrentFrame()
-}
-
-// handleInput handles keyboard input
-func (p *Player) handleInput() {
-	for {
-		switch ev := p.tui.screen.PollEvent().(type) {
-		case *tcell.EventKey:
-			switch ev.Key() {
-			case tcell.KeyEscape, tcell.KeyCtrlC:
-				p.isPlaying = false
-				return
-			case tcell.KeyRune:
-				switch ev.Rune() {
-				case 'q', 'Q':
-					p.isPlaying = false
-					return
-				case ' ': // Space bar for pause/resume
-					p.isPaused = !p.isPaused
-					p.displayCurrentFrame()
-				case 'r', 'R': // Restart
-					p.currentFrame = 0
-					p.isPaused = false
-					if !p.isPlaying {
-						p.isPlaying = true
-						go p.playbackLoop()
-					}
-				}
-			}
-		case *tcell.EventResize:
-			p.tui.screen.Sync()
-			p.displayCurrentFrame()
-		}
-	}
-} // handleInterrupt handles interrupt signals
+// handleInterrupt handles interrupt signals
 func (p *Player) handleInterrupt() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
 	p.isPlaying = false
-	p.tui.Close()
-	os.Exit(0)
+	p.app.Stop()
 }
