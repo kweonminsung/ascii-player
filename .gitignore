@@ -35,3 +35,5 @@ Thumbs.db
 # Build output
 ascii-player
 ascii-player.exe
+
+.air.toml
