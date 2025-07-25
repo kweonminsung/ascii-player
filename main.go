@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"github.com/kweonminsung/ascii-player/cmd"
 )
 
 func main() {
-	fmt.Println("Welcome to the ASCII Animation Player!")
+	cmd.Execute()
 }
