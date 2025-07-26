@@ -9,6 +9,8 @@ require (
 	gocv.io/x/gocv v0.41.0
 )
 
+replace gocv.io/x/gocv => ./third_party/gocv
+
 require (
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
