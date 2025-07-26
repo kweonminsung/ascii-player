@@ -42,6 +42,8 @@ type Player struct {
 	isPaused     bool
 	currentFrame int
 	startTime    time.Time
+	width        int
+	height       int
 
 	// Player instances for different modes
 	asciiPlayer *ascii.AsciiPlayer
@@ -65,9 +67,9 @@ func NewPlayer(filename string, fps int, loop bool, resolution string, color boo
 
 // LoadFrames loads frames for playback
 func (p *Player) LoadFrames() error {
-	width, height := 120, 40 // Default values
+	p.width, p.height = 120, 40 // Default values
 	if p.resolution != "" {
-		fmt.Sscanf(p.resolution, "%dx%d", &width, &height)
+		fmt.Sscanf(p.resolution, "%dx%d", &p.width, &p.height)
 	}
 
 	isYouTube := utils.IsValidYouTubeURL(p.filename)
@@ -77,8 +79,8 @@ func (p *Player) LoadFrames() error {
 		pixelPlayer, err := pixel.NewPixelPlayer(p.filename, types.PlayerConfig{
 			Mode:      "pixel",
 			Color:     p.color,
-			Width:     width,
-			Height:    height,
+			Width:     p.width,
+			Height:    p.height,
 			FPS:       p.fps,
 			Loop:      p.loop,
 			Source:    p.filename,
@@ -95,8 +97,8 @@ func (p *Player) LoadFrames() error {
 		asciiPlayer, err := ascii.NewAsciiPlayer(p.filename, types.PlayerConfig{
 			Mode:      "ascii",
 			Color:     p.color,
-			Width:     width,
-			Height:    height,
+			Width:     p.width,
+			Height:    p.height,
 			FPS:       p.fps,
 			Loop:      p.loop,
 			Source:    p.filename,
@@ -112,10 +114,6 @@ func (p *Player) LoadFrames() error {
 
 // Play starts the TUI player
 func (p *Player) Play() error {
-	if err := p.LoadFrames(); err != nil {
-		return fmt.Errorf("failed to load frames: %v", err)
-	}
-
 	var err error
 	p.screen, err = tcell.NewScreen()
 	if err != nil {
@@ -125,6 +123,16 @@ func (p *Player) Play() error {
 		return fmt.Errorf("failed to initialize screen: %v", err)
 	}
 	defer p.screen.Fini()
+
+	// If no resolution is specified, use the full screen size
+	if p.resolution == "" {
+		width, height := p.screen.Size()
+		p.resolution = fmt.Sprintf("%dx%d", width, height-1) // Subtract 1 for status bar
+	}
+
+	if err := p.LoadFrames(); err != nil {
+		return fmt.Errorf("failed to load frames: %v", err)
+	}
 
 	p.screen.SetStyle(tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset))
 	p.screen.Clear()
@@ -154,6 +162,12 @@ func (p *Player) handleEvents() {
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
 			p.screen.Sync()
+			width, height := p.screen.Size()
+			p.resolution = fmt.Sprintf("%dx%d", width, height-1)
+			if err := p.LoadFrames(); err != nil {
+				log.Printf("failed to reload frames on resize: %v", err)
+			}
+			p.screen.Clear()
 		case *tcell.EventKey:
 			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC || ev.Rune() == 'q' || ev.Rune() == 'Q' {
 				p.isPlaying = false
@@ -259,8 +273,11 @@ func (p *Player) drawString(x, y int, str string) {
 }
 
 func (p *Player) drawStatus() {
-	_, height := p.screen.Size()
-	statusY := height - 1
+	_, screenHeight := p.screen.Size()
+	statusY := p.height
+	if statusY >= screenHeight {
+		statusY = screenHeight - 1
+	}
 
 	status := "PLAYING"
 	if p.isPaused {
