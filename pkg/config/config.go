@@ -12,11 +12,10 @@ import (
 
 // Data represents the structure of the configuration file
 type Data struct {
-	Mode       string `json:"mode"` // e.g., "ascii", "pixel"
-	Color      bool   `json:"color"`
-	FPS        int    `json:"fps"`
-	Loop       bool   `json:"loop"`
-	Resolution string `json:"resolution"`
+	Mode  string `json:"mode"` // e.g., "ascii", "pixel"
+	Color bool   `json:"color"`
+	FPS   int    `json:"fps"`
+	Loop  bool   `json:"loop"`
 }
 
 // Manager handles configuration operations
@@ -45,11 +44,10 @@ func (m *Manager) GetConfigPath() string {
 // CreateDefault creates a default configuration
 func (m *Manager) CreateDefault() *Data {
 	return &Data{
-		Mode:       "ascii",
-		Color:      false,
-		FPS:        30,
-		Loop:       false,
-		Resolution: "high", // ultra, high, medium, low
+		Mode:  "ascii",
+		Color: false,
+		FPS:   30,
+		Loop:  false,
 	}
 }
 
@@ -134,8 +132,7 @@ func (config *Data) Display() string {
 	return fmt.Sprintf(`Mode:          %s
 Color:         %t
 FPS:           %d
-Loop:          %t
-Resolution:    %s`, config.Mode, config.Color, config.FPS, config.Loop, config.Resolution,
+Loop:          %t`, config.Mode, config.Color, config.FPS, config.Loop,
 	)
 }
 

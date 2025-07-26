@@ -27,7 +27,7 @@ func isYouTubeURL(url string) bool {
 var playCmd = &cobra.Command{
 	Use:   "play [file]",
 	Short: "Play ASCII/Pixel animations from a local video file",
-	Long:  `Play ASCII/Pixel animations from a specified local video file (MP4, AVI, etc.). The video will be converted to ASCII art or pixel art in real-time and displayed in the terminal. Supports options for mode, FPS, looping, and resolution.`,
+	Long:  `Play ASCII/Pixel animations from a specified local video file (MP4, AVI, etc.). The video will be converted to ASCII art or pixel art in real-time and displayed in the terminal. Supports options for mode, FPS and looping.`,
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var filename string
@@ -49,15 +49,14 @@ var playCmd = &cobra.Command{
 
 		fps, _ := cmd.Flags().GetInt("fps")
 		loop, _ := cmd.Flags().GetBool("loop")
-		resolution, _ := cmd.Flags().GetString("resolution")
 		color, _ := cmd.Flags().GetBool("color")
 		mode, _ := cmd.Flags().GetString("mode")
 
 		fmt.Printf("Starting %s player for local file: %s\n", mode, filename)
-		fmt.Printf("Settings - FPS: %d, Loop: %t, Resolution: %s, Color: %t, Mode: %s\n", fps, loop, resolution, color, mode)
+		fmt.Printf("Settings - FPS: %d, Loop: %t, Color: %t, Mode: %s\n", fps, loop, color, mode)
 
 		// Create and start TUI player
-		player := player.NewPlayer(filename, fps, loop, resolution, color, mode)
+		player := player.NewPlayer(filename, fps, loop, color, mode)
 
 		err := player.Play()
 		if err != nil {
@@ -69,11 +68,10 @@ var playCmd = &cobra.Command{
 }
 
 func init() {
-	playCmd.Flags().BoolP("color", "c", false, "Enable colored output")
+	playCmd.Flags().BoolP("color", "c", true, "Enable colored output")
 	playCmd.Flags().IntP("fps", "f", 30, "Frames per second for playback")
 	playCmd.Flags().BoolP("loop", "l", false, "Loop the animation")
-	playCmd.Flags().StringP("resolution", "r", "high", "Resolution quality (low, medium, high, ultra)")
-	playCmd.Flags().StringP("mode", "m", "ascii", "Player mode (ascii, pixel)")
+	playCmd.Flags().StringP("mode", "m", "pixel", "Player mode (ascii, pixel)")
 
 	rootCmd.AddCommand(playCmd)
 }

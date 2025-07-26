@@ -34,7 +34,6 @@ type Player struct {
 	screen       tcell.Screen
 	fps          int
 	loop         bool
-	resolution   string
 	color        bool
 	filename     string
 	mode         string
@@ -52,11 +51,10 @@ type Player struct {
 }
 
 // NewPlayer creates a new TUI player
-func NewPlayer(filename string, fps int, loop bool, resolution string, color bool, mode string) *Player {
+func NewPlayer(filename string, fps int, loop bool, color bool, mode string) *Player {
 	return &Player{
 		fps:          fps,
 		loop:         loop,
-		resolution:   resolution,
 		color:        color,
 		filename:     filename,
 		mode:         mode,
@@ -69,10 +67,8 @@ func NewPlayer(filename string, fps int, loop bool, resolution string, color boo
 
 // LoadFrames loads frames for playback
 func (p *Player) LoadFrames() error {
-	p.width, p.height = 120, 40 // Default values
-	if p.resolution != "" {
-		fmt.Sscanf(p.resolution, "%dx%d", &p.width, &p.height)
-	}
+	width, height := p.screen.Size()
+	p.width, p.height = width, height-1 // Subtract 1 for status bar
 
 	isYouTube := utils.IsValidYouTubeURL(p.filename)
 
@@ -126,12 +122,6 @@ func (p *Player) Play() error {
 	}
 	defer p.screen.Fini()
 
-	// If no resolution is specified, use the full screen size
-	if p.resolution == "" {
-		width, height := p.screen.Size()
-		p.resolution = fmt.Sprintf("%dx%d", width, height-1) // Subtract 1 for status bar
-	}
-
 	if err := p.LoadFrames(); err != nil {
 		return fmt.Errorf("failed to load frames: %v", err)
 	}
@@ -164,8 +154,6 @@ func (p *Player) handleEvents() {
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
 			p.screen.Sync()
-			width, height := p.screen.Size()
-			p.resolution = fmt.Sprintf("%dx%d", width, height-1)
 			if err := p.LoadFrames(); err != nil {
 				log.Printf("failed to reload frames on resize: %v", err)
 			}
@@ -313,7 +301,7 @@ func (p *Player) drawStatus() {
 		mode,
 		p.fps,
 		status,
-		p.resolution,
+		strconv.Itoa(p.width)+"x"+strconv.Itoa(p.height),
 		getPlayerModeTitle(p.mode))
 
 	// Clear status line

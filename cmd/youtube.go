@@ -36,15 +36,14 @@ var youtubeCmd = &cobra.Command{
 
 		fps, _ := cmd.Flags().GetInt("fps")
 		loop, _ := cmd.Flags().GetBool("loop")
-		resolution, _ := cmd.Flags().GetString("resolution")
 		color, _ := cmd.Flags().GetBool("color")
 		mode, _ := cmd.Flags().GetString("mode")
 
 		fmt.Printf("Starting %s player for YouTube video: %s\n", mode, youtubeURL)
-		fmt.Printf("Settings - FPS: %d, Loop: %t, Resolution: %s, Color: %t, Mode: %s\n", fps, loop, resolution, color, mode)
+		fmt.Printf("Settings - FPS: %d, Loop: %t, Color: %t, Mode: %s\n", fps, loop, color, mode)
 
 		// Create and start TUI player
-		player := player.NewPlayer(youtubeURL, fps, loop, resolution, color, mode)
+		player := player.NewPlayer(youtubeURL, fps, loop, color, mode)
 
 		err := player.Play()
 		if err != nil {
@@ -77,6 +76,5 @@ func init() {
 	youtubeCmd.Flags().BoolP("color", "c", false, "Enable colored output")
 	youtubeCmd.Flags().IntP("fps", "f", 30, "Frames per second for playback")
 	youtubeCmd.Flags().BoolP("loop", "l", false, "Loop the animation")
-	youtubeCmd.Flags().StringP("resolution", "r", "high", "Resolution quality (low, medium, high, ultra)")
 	youtubeCmd.Flags().StringP("mode", "m", "ascii", "Player mode (ascii, pixel)")
 }
