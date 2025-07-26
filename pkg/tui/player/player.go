@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -17,8 +16,6 @@ import (
 	"github.com/kweonminsung/ascii-player/pkg/types"
 	"github.com/kweonminsung/ascii-player/pkg/utils"
 )
-
-var colorRegex = regexp.MustCompile(`\[#([0-9a-fA-F]{6})\]`)
 
 // getPlayerModeTitle returns the display title for the given mode
 func getPlayerModeTitle(mode string) string {
@@ -242,16 +239,17 @@ func (p *Player) drawFrame(frame string) {
 
 func (p *Player) drawString(x, y int, str string) {
 	style := tcell.StyleDefault
+	runes := []rune(str)
 	i := 0
-	for _, r := range str {
-		if r == '[' && len(str) > i+8 && str[i+1] == '#' && str[i+8] == ']' {
-			hex := str[i+2 : i+8]
+	for i < len(runes) {
+		r := runes[i]
+		if r == '[' && i+8 < len(runes) && runes[i+1] == '#' && runes[i+8] == ']' {
+			hex := string(runes[i+2 : i+8])
 			if rgb, err := strconv.ParseInt(hex, 16, 32); err == nil {
 				color := tcell.NewHexColor(int32(rgb))
 				style = style.Foreground(color)
 			}
-			str = str[i+9:]
-			i = 0
+			i += 9 // Move index past the color tag
 			continue
 		}
 		p.screen.SetContent(x, y, r, nil, style)
