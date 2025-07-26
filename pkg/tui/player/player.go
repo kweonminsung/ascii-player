@@ -40,6 +40,7 @@ type Player struct {
 	mode         string
 	isPlaying    bool
 	isPaused     bool
+	isFinished   bool
 	currentFrame int
 	startTime    time.Time
 	width        int
@@ -61,6 +62,7 @@ func NewPlayer(filename string, fps int, loop bool, resolution string, color boo
 		mode:         mode,
 		isPlaying:    false,
 		isPaused:     false,
+		isFinished:   false,
 		currentFrame: 0,
 	}
 }
@@ -169,16 +171,31 @@ func (p *Player) handleEvents() {
 			}
 			p.screen.Clear()
 		case *tcell.EventKey:
-			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC || ev.Rune() == 'q' || ev.Rune() == 'Q' {
-				p.isPlaying = false
-				p.screen.Fini()
-				os.Exit(0)
-			} else if ev.Rune() == ' ' {
-				p.isPaused = !p.isPaused
-			} else if ev.Rune() == 'r' || ev.Rune() == 'R' {
-				p.startTime = time.Now()
-				p.currentFrame = 0
-				p.isPaused = false
+			if p.isFinished {
+				if ev.Rune() == 'r' || ev.Rune() == 'R' {
+					p.startTime = time.Now()
+					p.currentFrame = 0
+					p.isPaused = false
+					p.isFinished = false
+					p.isPlaying = true
+					p.screen.Clear()
+				} else if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC || ev.Rune() == 'q' || ev.Rune() == 'Q' {
+					p.isPlaying = false
+					p.screen.Fini()
+					os.Exit(0)
+				}
+			} else {
+				if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC || ev.Rune() == 'q' || ev.Rune() == 'Q' {
+					p.isPlaying = false
+					p.screen.Fini()
+					os.Exit(0)
+				} else if ev.Rune() == ' ' {
+					p.isPaused = !p.isPaused
+				} else if ev.Rune() == 'r' || ev.Rune() == 'R' {
+					p.startTime = time.Now()
+					p.currentFrame = 0
+					p.isPaused = false
+				}
 			}
 		}
 	}
@@ -213,25 +230,25 @@ func (p *Player) playbackLoop() {
 
 	for range ticker.C {
 		if !p.isPlaying {
+			if p.isFinished {
+				continue
+			}
 			return
 		}
 		if !p.isPaused {
 			elapsed := time.Since(p.startTime)
 			frame, err := getFrame(elapsed)
 			if err != nil {
-				if strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "out of range") {
-					if p.loop {
-						p.startTime = time.Now()
-						p.currentFrame = 0
-						continue
-					} else {
-						p.isPlaying = false
-						p.displayEndMessage()
-						return
-					}
+				if p.loop {
+					p.startTime = time.Now()
+					p.currentFrame = 0
+					continue
+				} else {
+					p.isPlaying = false
+					p.isFinished = true
+					p.displayEndMessage()
+					continue
 				}
-				log.Printf("Error getting frame: %v", err)
-				continue
 			}
 
 			p.drawFrame(frame)
@@ -314,7 +331,44 @@ func (p *Player) drawStatus() {
 
 func (p *Player) displayEndMessage() {
 	p.screen.Clear()
-	msg := "Playback Finished! Press [R] to restart or [Q] to quit."
-	p.drawString(0, 0, msg)
+	screenWidth, screenHeight := p.screen.Size()
+
+	boxWidth := 50
+	boxHeight := 7
+
+	x := (screenWidth - boxWidth) / 2
+	y := (screenHeight - boxHeight) / 2
+
+	style := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
+
+	// Draw the box
+	for i := x; i < x+boxWidth; i++ {
+		p.screen.SetContent(i, y, tcell.RuneHLine, nil, style)
+		p.screen.SetContent(i, y+boxHeight-1, tcell.RuneHLine, nil, style)
+	}
+	for i := y; i < y+boxHeight; i++ {
+		p.screen.SetContent(x, i, tcell.RuneVLine, nil, style)
+		p.screen.SetContent(x+boxWidth-1, i, tcell.RuneVLine, nil, style)
+	}
+	p.screen.SetContent(x, y, tcell.RuneULCorner, nil, style)
+	p.screen.SetContent(x+boxWidth-1, y, tcell.RuneURCorner, nil, style)
+	p.screen.SetContent(x, y+boxHeight-1, tcell.RuneLLCorner, nil, style)
+	p.screen.SetContent(x+boxWidth-1, y+boxHeight-1, tcell.RuneLRCorner, nil, style)
+
+	// Fill the box
+	for i := y + 1; i < y+boxHeight-1; i++ {
+		for j := x + 1; j < x+boxWidth-1; j++ {
+			p.screen.SetContent(j, i, ' ', nil, style)
+		}
+	}
+
+	// Draw the message
+	msg1 := "Playback Finished!"
+	msg2 := "Do you want to restart?"
+	msg3 := "[R] Restart  [Q] Quit"
+	p.drawString(x+(boxWidth-len(msg1))/2, y+2, msg1)
+	p.drawString(x+(boxWidth-len(msg2))/2, y+3, msg2)
+	p.drawString(x+(boxWidth-len(msg3))/2, y+5, msg3)
+
 	p.screen.Show()
 }
