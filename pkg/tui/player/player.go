@@ -5,6 +5,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"regexp"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -13,8 +16,9 @@ import (
 	"github.com/kweonminsung/ascii-player/pkg/pixel"
 	"github.com/kweonminsung/ascii-player/pkg/types"
 	"github.com/kweonminsung/ascii-player/pkg/utils"
-	"github.com/rivo/tview"
 )
+
+var colorRegex = regexp.MustCompile(`\[#([0-9a-fA-F]{6})\]`)
 
 // getPlayerModeTitle returns the display title for the given mode
 func getPlayerModeTitle(mode string) string {
@@ -30,9 +34,7 @@ func getPlayerModeTitle(mode string) string {
 
 // Player represents the TUI player
 type Player struct {
-	app          *tview.Application
-	textView     *tview.TextView
-	statusView   *tview.TextView
+	screen       tcell.Screen
 	fps          int
 	loop         bool
 	resolution   string
@@ -41,8 +43,9 @@ type Player struct {
 	mode         string
 	isPlaying    bool
 	isPaused     bool
-	frames       []string
 	currentFrame int
+	startTime    time.Time
+
 	// Player instances for different modes
 	asciiPlayer *ascii.AsciiPlayer
 	pixelPlayer *pixel.PixelPlayer
@@ -50,29 +53,7 @@ type Player struct {
 
 // NewPlayer creates a new TUI player
 func NewPlayer(filename string, fps int, loop bool, resolution string, color bool, mode string) *Player {
-	app := tview.NewApplication()
-
-	// Create text view for content
-	textView := tview.NewTextView().
-		SetDynamicColors(color).
-		SetRegions(true).
-		SetWordWrap(false).
-		SetScrollable(false)
-	textView.SetBorder(true).
-		SetTitle(fmt.Sprintf(" %s Player - %s ", getPlayerModeTitle(mode), filename)).
-		SetTitleAlign(tview.AlignLeft)
-
-	// Create status view for controls
-	statusView := tview.NewTextView().
-		SetText("Loading...").
-		SetTextAlign(tview.AlignCenter).
-		SetDynamicColors(true)
-	statusView.SetBorder(true).SetTitle("Status")
-
 	return &Player{
-		app:          app,
-		textView:     textView,
-		statusView:   statusView,
 		fps:          fps,
 		loop:         loop,
 		resolution:   resolution,
@@ -81,7 +62,6 @@ func NewPlayer(filename string, fps int, loop bool, resolution string, color boo
 		mode:         mode,
 		isPlaying:    false,
 		isPaused:     false,
-		frames:       []string{},
 		currentFrame: 0,
 	}
 }
@@ -93,7 +73,6 @@ func (p *Player) LoadFrames() error {
 		fmt.Sscanf(p.resolution, "%dx%d", &width, &height)
 	}
 
-	// Check if it's a YouTube URL
 	isYouTube := utils.IsValidYouTubeURL(p.filename)
 
 	switch p.mode {
@@ -140,92 +119,151 @@ func (p *Player) Play() error {
 		return fmt.Errorf("failed to load frames: %v", err)
 	}
 
-	// 모든 모드에서 TUI를 사용
-	return p.playWithTUI()
-}
+	var err error
+	p.screen, err = tcell.NewScreen()
+	if err != nil {
+		return fmt.Errorf("failed to create screen: %v", err)
+	}
+	if err := p.screen.Init(); err != nil {
+		return fmt.Errorf("failed to initialize screen: %v", err)
+	}
+	defer p.screen.Fini()
 
-// playWithTUI plays video using TUI interface for both ASCII and Pixel modes
-func (p *Player) playWithTUI() error {
-	// Set up key bindings
-	p.setupKeyBindings()
-
-	// Set up the main layout
-	flex := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(p.textView, 0, 1, true).
-		AddItem(p.statusView, 3, 0, false)
-
-	p.app.SetRoot(flex, true)
+	p.screen.SetStyle(tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset))
+	p.screen.Clear()
 
 	// Handle interrupt signals
 	go p.handleInterrupt()
+	// Handle keyboard events
+	go p.handleEvents()
 
-	// Start playback loop based on the selected mode
-	switch p.mode {
-	case "pixel":
-		go p.pixelPlaybackLoop()
-	case "ascii":
-		fallthrough
-	default:
-		go p.asciiPlaybackLoop()
-	}
+	p.playbackLoop()
 
-	// Initialize status view
-	go p.updateStatusView()
-
-	// Run the application
-	return p.app.Run()
+	return nil
 }
 
-// setupKeyBindings sets up keyboard controls
-func (p *Player) setupKeyBindings() {
-	p.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape, tcell.KeyCtrlC:
-			p.app.Stop()
-			return nil
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'q', 'Q':
-				p.app.Stop()
-				return nil
-			case ' ': // Space bar to pause/resume
+func (p *Player) handleInterrupt() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+	p.isPlaying = false
+	p.screen.Fini()
+	os.Exit(0)
+}
+
+func (p *Player) handleEvents() {
+	for {
+		ev := p.screen.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventResize:
+			p.screen.Sync()
+		case *tcell.EventKey:
+			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC || ev.Rune() == 'q' || ev.Rune() == 'Q' {
+				p.isPlaying = false
+				p.screen.Fini()
+				os.Exit(0)
+			} else if ev.Rune() == ' ' {
 				p.isPaused = !p.isPaused
-				go p.updateStatusView() // 상태 업데이트
-				return nil
-			case 'r', 'R': // Restart
-				if p.mode == "ascii" {
-					// ASCII 모드 재시작
-					if p.isPlaying || p.isPaused {
-						p.currentFrame = 0
-						p.isPaused = false
-						if !p.isPlaying {
-							p.isPlaying = true
-							go p.asciiPlaybackLoop()
-						}
-						go p.updateStatusView()
-					}
-				} else if p.mode == "pixel" {
-					// Pixel 모드 재시작
-					if p.isPlaying || p.isPaused {
-						p.currentFrame = 0
-						p.isPaused = false
-						if !p.isPlaying {
-							p.isPlaying = true
-							go p.pixelPlaybackLoop()
-						}
-						go p.updateStatusView()
-					}
-				}
-				return nil
+			} else if ev.Rune() == 'r' || ev.Rune() == 'R' {
+				p.startTime = time.Now()
+				p.currentFrame = 0
+				p.isPaused = false
 			}
 		}
-		return event
-	})
+	}
 }
 
-// updateStatusView updates the status view with current information
-func (p *Player) updateStatusView() {
+func (p *Player) playbackLoop() {
+	var getFrame func(time.Duration) (string, error)
+	var getFPS func() float64
+
+	switch p.mode {
+	case "pixel":
+		getFrame = p.pixelPlayer.GetFrameAt
+		getFPS = p.pixelPlayer.GetFPS
+	default:
+		getFrame = p.asciiPlayer.GetFrameAt
+		getFPS = p.asciiPlayer.GetFPS
+	}
+
+	fps := p.fps
+	if fps <= 0 {
+		fps = int(getFPS())
+		if fps <= 0 {
+			fps = 30
+		}
+	}
+
+	ticker := time.NewTicker(time.Second / time.Duration(fps))
+	defer ticker.Stop()
+
+	p.isPlaying = true
+	p.startTime = time.Now()
+
+	for range ticker.C {
+		if !p.isPlaying {
+			return
+		}
+		if !p.isPaused {
+			elapsed := time.Since(p.startTime)
+			frame, err := getFrame(elapsed)
+			if err != nil {
+				if strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "out of range") {
+					if p.loop {
+						p.startTime = time.Now()
+						p.currentFrame = 0
+						continue
+					} else {
+						p.isPlaying = false
+						p.displayEndMessage()
+						return
+					}
+				}
+				log.Printf("Error getting frame: %v", err)
+				continue
+			}
+
+			p.drawFrame(frame)
+			p.drawStatus()
+			p.screen.Show()
+
+			p.currentFrame++
+		}
+	}
+}
+
+func (p *Player) drawFrame(frame string) {
+	p.screen.Clear()
+	lines := strings.Split(frame, "\n")
+	for y, line := range lines {
+		p.drawString(0, y, line)
+	}
+}
+
+func (p *Player) drawString(x, y int, str string) {
+	style := tcell.StyleDefault
+	i := 0
+	for _, r := range str {
+		if r == '[' && len(str) > i+8 && str[i+1] == '#' && str[i+8] == ']' {
+			hex := str[i+2 : i+8]
+			if rgb, err := strconv.ParseInt(hex, 16, 32); err == nil {
+				color := tcell.NewHexColor(int32(rgb))
+				style = style.Foreground(color)
+			}
+			str = str[i+9:]
+			i = 0
+			continue
+		}
+		p.screen.SetContent(x, y, r, nil, style)
+		x++
+		i++
+	}
+}
+
+func (p *Player) drawStatus() {
+	_, height := p.screen.Size()
+	statusY := height - 1
+
 	status := "PLAYING"
 	if p.isPaused {
 		status = "PAUSED"
@@ -239,180 +277,29 @@ func (p *Player) updateStatusView() {
 		mode = "Loop"
 	}
 
-	frameInfo := ""
-	if p.mode == "ascii" || p.mode == "pixel" {
-		frameInfo = fmt.Sprintf("Frame: %d/%d", p.currentFrame+1, len(p.frames))
-	} else {
-		frameInfo = "Frame: N/A"
-	}
-
-	statusText := fmt.Sprintf("Mode: %s | %s | FPS: %d | Status: %s | Resolution: %s | Player: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [Q/ESC] Quit",
+	statusText := fmt.Sprintf("Mode: %s | FPS: %d | Status: %s | Resolution: %s | Player: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [Q/ESC] Quit",
 		mode,
-		frameInfo,
 		p.fps,
 		status,
 		p.resolution,
 		getPlayerModeTitle(p.mode))
 
-	p.app.QueueUpdateDraw(func() {
-		p.statusView.SetText(statusText)
-	})
-}
-
-// asciiPlaybackLoop handles frame playback for ASCII mode
-func (p *Player) asciiPlaybackLoop() {
-	if p.asciiPlayer == nil {
-		return
+	// Clear status line
+	width, _ := p.screen.Size()
+	for i := 0; i < width; i++ {
+		p.screen.SetContent(i, statusY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorSilver).Foreground(tcell.ColorBlack))
 	}
 
-	fps := p.fps
-	if fps <= 0 {
-		fps = int(p.asciiPlayer.GetFPS())
-		if fps <= 0 {
-			fps = 30
-		}
-	}
-
-	ticker := time.NewTicker(time.Second / time.Duration(fps))
-	defer ticker.Stop()
-
-	p.isPlaying = true
-	currentTime := time.Duration(0)
-	frameDuration := time.Second / time.Duration(fps)
-
-	for range ticker.C {
-		if !p.isPlaying {
-			return
-		}
-		if !p.isPaused {
-			frame, err := p.asciiPlayer.GetFrameAt(currentTime)
-			if err != nil {
-				log.Printf("Error getting frame: %v", err)
-				continue
-			}
-
-			p.app.QueueUpdateDraw(func() {
-				p.textView.SetText(frame)
-			})
-
-			p.currentFrame++
-			p.updateStatusView()
-			currentTime += frameDuration
-
-			// Check if we've reached the end (this is a simple check, might need improvement)
-			if currentTime > time.Minute*10 { // Arbitrary limit, should be replaced with actual video duration
-				if p.loop {
-					currentTime = 0
-					p.currentFrame = 0
-				} else {
-					p.isPlaying = false
-					p.displayEndMessage()
-					p.updateStatusView()
-					return
-				}
-			}
-		}
+	// Draw status text
+	runes := []rune(statusText)
+	for i := 0; i < len(runes) && i < width; i++ {
+		p.screen.SetContent(i, statusY, runes[i], nil, tcell.StyleDefault.Background(tcell.ColorSilver).Foreground(tcell.ColorBlack))
 	}
 }
 
-// pixelPlaybackLoop handles frame playback for Pixel mode
-func (p *Player) pixelPlaybackLoop() {
-	if p.pixelPlayer == nil {
-		return
-	}
-
-	fps := p.fps
-	if fps <= 0 {
-		fps = int(p.pixelPlayer.GetFPS())
-		if fps <= 0 {
-			fps = 30
-		}
-	}
-
-	ticker := time.NewTicker(time.Second / time.Duration(fps))
-	defer ticker.Stop()
-
-	p.isPlaying = true
-	currentTime := time.Duration(0)
-	frameDuration := time.Second / time.Duration(fps)
-
-	for range ticker.C {
-		if !p.isPlaying {
-			return
-		}
-		if !p.isPaused {
-			frame, err := p.pixelPlayer.GetFrameAt(currentTime)
-			if err != nil {
-				log.Printf("Error getting pixel frame: %v", err)
-				continue
-			}
-
-			p.app.QueueUpdateDraw(func() {
-				p.textView.SetText(frame)
-			})
-
-			p.currentFrame++
-			p.updateStatusView()
-			currentTime += frameDuration
-
-			// Check if we've reached the end
-			if currentTime > time.Minute*10 { // Arbitrary limit, should be replaced with actual video duration
-				if p.loop {
-					currentTime = 0
-					p.currentFrame = 0
-				} else {
-					p.isPlaying = false
-					p.displayEndMessage()
-					p.updateStatusView()
-					return
-				}
-			}
-		}
-	}
-}
-
-// displayEndMessage shows the end message
 func (p *Player) displayEndMessage() {
-	// Create a modal for end message
-	totalFrames := "N/A"
-	if p.mode == "ascii" {
-		totalFrames = fmt.Sprintf("%d", len(p.frames))
-	}
-
-	modal := tview.NewModal().
-		SetText(fmt.Sprintf("Playback Finished!\n\nFile: %s\nTotal frames: %s\n\nPress [R] to restart or [Q] to quit",
-			p.filename, totalFrames)).
-		AddButtons([]string{"Restart (R)", "Quit (Q)"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			if buttonIndex == 0 || buttonLabel == "Restart (R)" {
-				// Restart
-				p.currentFrame = 0
-				p.isPaused = false
-				p.isPlaying = true
-				p.app.SetRoot(tview.NewFlex().
-					SetDirection(tview.FlexRow).
-					AddItem(p.textView, 0, 1, true).
-					AddItem(p.statusView, 3, 0, false), true)
-				if p.mode == "ascii" {
-					go p.asciiPlaybackLoop()
-				}
-				go p.updateStatusView()
-			} else {
-				// Quit
-				p.app.Stop()
-			}
-		})
-
-	p.app.QueueUpdateDraw(func() {
-		p.app.SetRoot(modal, true)
-	})
-}
-
-// handleInterrupt handles interrupt signals
-func (p *Player) handleInterrupt() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	<-c
-	p.isPlaying = false
-	p.app.Stop()
+	p.screen.Clear()
+	msg := "Playback Finished! Press [R] to restart or [Q] to quit."
+	p.drawString(0, 0, msg)
+	p.screen.Show()
 }
