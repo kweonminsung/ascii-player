@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"runtime"
+	"sync"
 
 	"github.com/kweonminsung/ascii-player/pkg/types"
 	"gocv.io/x/gocv"
@@ -27,8 +29,6 @@ func NewAsciiConverter() *AsciiConverter {
 // Convert는 gocv.Mat 이미지를 지정된 너비와 높이의 ASCII 문자열로 변환합니다.
 // color가 true이면 ANSI 컬러 코드 기반 ASCII 출력, false이면 흑백 ASCII 출력.
 func (c *AsciiConverter) Convert(img gocv.Mat, width, height int, color bool) (string, error) {
-	var buffer bytes.Buffer
-
 	originalWidth := float64(img.Cols())
 	originalHeight := float64(img.Rows())
 	aspectRatio := originalHeight / originalWidth
@@ -44,46 +44,80 @@ func (c *AsciiConverter) Convert(img gocv.Mat, width, height int, color bool) (s
 	defer resized.Close()
 	gocv.Resize(img, &resized, image.Point{X: width, Y: newHeight}, 0, 0, gocv.InterpolationLinear)
 
+	lines := make([]string, newHeight)
+	var wg sync.WaitGroup
+	numWorkers := runtime.NumCPU()
+
 	if color {
-		// ANSI 컬러 모드
+		rowJobs := make(chan int, newHeight)
 		for y := 0; y < newHeight; y++ {
-			for x := 0; x < width; x++ {
-				vec := resized.GetVecbAt(y, x) // BGR 형식
-				b, g, r := vec[0], vec[1], vec[2]
-
-				// 문자 선택 (컬러 강조용 단순화)
-				var ch rune
-				if r > g && r > b {
-					ch = '@' // 빨강 계열
-				} else if g > r && g > b {
-					ch = '&' // 초록 계열
-				} else if b > r && b > g {
-					ch = '#' // 파랑 계열
-				} else {
-					ch = '.' // 기타
-				}
-
-				// ANSI 24bit 컬러 적용
-				buffer.WriteString(fmt.Sprintf("\x1b[38;2;%d;%d;%dm%c", r, g, b, ch))
-			}
-			buffer.WriteString("\x1b[0m\n") // 한 줄 끝나면 색상 리셋 + 줄바꿈
+			rowJobs <- y
 		}
+		close(rowJobs)
+
+		wg.Add(newHeight)
+		for i := 0; i < numWorkers; i++ {
+			go func() {
+				for y := range rowJobs {
+					var line bytes.Buffer
+					for x := 0; x < width; x++ {
+						vec := resized.GetVecbAt(y, x) // BGR 형식
+						b, g, r := vec[0], vec[1], vec[2]
+						var ch rune
+						if r > g && r > b {
+							ch = '@'
+						} else if g > r && g > b {
+							ch = '&'
+						} else if b > r && b > g {
+							ch = '#'
+						} else {
+							ch = '.'
+						}
+						line.WriteString(fmt.Sprintf("\x1b[38;2;%d;%d;%dm%c", r, g, b, ch))
+					}
+					line.WriteString("\x1b[0m")
+					lines[y] = line.String()
+					wg.Done()
+				}
+			}()
+		}
+		wg.Wait()
 	} else {
-		// 흑백 ASCII 모드
 		gray := gocv.NewMat()
 		defer gray.Close()
 		gocv.CvtColor(resized, &gray, gocv.ColorBGRToGray)
+
+		rowJobs := make(chan int, newHeight)
 		for y := 0; y < newHeight; y++ {
-			for x := 0; x < width; x++ {
-				pixel := gray.GetUCharAt(y, x)
-				idx := int(float64(pixel) / 255.0 * float64(len(c.charset)))
-				if idx >= len(c.charset) {
-					idx = len(c.charset) - 1
-				}
-				buffer.WriteRune(c.charset[idx])
-			}
-			buffer.WriteRune('\n')
+			rowJobs <- y
 		}
+		close(rowJobs)
+
+		wg.Add(newHeight)
+		for i := 0; i < numWorkers; i++ {
+			go func() {
+				for y := range rowJobs {
+					var line bytes.Buffer
+					for x := 0; x < width; x++ {
+						pixel := gray.GetUCharAt(y, x)
+						idx := int(float64(pixel) / 255.0 * float64(len(c.charset)))
+						if idx >= len(c.charset) {
+							idx = len(c.charset) - 1
+						}
+						line.WriteRune(c.charset[idx])
+					}
+					lines[y] = line.String()
+					wg.Done()
+				}
+			}()
+		}
+		wg.Wait()
+	}
+
+	var buffer bytes.Buffer
+	for _, line := range lines {
+		buffer.WriteString(line)
+		buffer.WriteRune('\n')
 	}
 
 	return buffer.String(), nil

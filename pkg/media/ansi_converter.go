@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"runtime"
+	"sync"
 
 	"github.com/kweonminsung/ascii-player/pkg/types"
 	"gocv.io/x/gocv"
@@ -19,8 +21,6 @@ func NewAnsiConverter() *AnsiConverter {
 // Render는 gocv.Mat을 ANSI 컬러 문자열(픽셀당 컬러 문자)로 변환하여 반환합니다.
 // color가 true일 경우 ANSI 색상 출력, false일 경우 회색조
 func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (string, error) {
-	var buffer bytes.Buffer
-
 	originalWidth := float64(img.Cols())
 	originalHeight := float64(img.Rows())
 	if originalWidth == 0 {
@@ -39,36 +39,67 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 	defer resized.Close()
 	gocv.Resize(img, &resized, image.Pt(width, newHeight), 0, 0, gocv.InterpolationLinear)
 
+	lines := make([]string, newHeight)
+	var wg sync.WaitGroup
+	numWorkers := runtime.NumCPU()
+
 	if color {
-		// 컬러 tview 모드
+		rowJobs := make(chan int, newHeight)
 		for y := 0; y < newHeight; y++ {
-			for x := 0; x < width; x++ {
-				vec := resized.GetVecbAt(y, x) // BGR
-				b, g, r := vec[0], vec[1], vec[2]
-
-				// 문자 선택
-				ch := '█'
-
-				// tview의 24비트 전경색 설정 + 문자 출력
-				buffer.WriteString(fmt.Sprintf("[#%02x%02x%02x]%c", r, g, b, ch))
-			}
-			buffer.WriteString("\n")
+			rowJobs <- y
 		}
+		close(rowJobs)
+
+		wg.Add(newHeight)
+		for i := 0; i < numWorkers; i++ {
+			go func() {
+				for y := range rowJobs {
+					var line bytes.Buffer
+					for x := 0; x < width; x++ {
+						vec := resized.GetVecbAt(y, x) // BGR
+						b, g, r := vec[0], vec[1], vec[2]
+						ch := '█'
+						line.WriteString(fmt.Sprintf("[#%02x%02x%02x]%c", r, g, b, ch))
+					}
+					lines[y] = line.String()
+					wg.Done()
+				}
+			}()
+		}
+		wg.Wait()
 	} else {
-		// 흑백 모드 (회색조)
 		gray := gocv.NewMat()
 		defer gray.Close()
 		gocv.CvtColor(resized, &gray, gocv.ColorBGRToGray)
 
+		rowJobs := make(chan int, newHeight)
 		for y := 0; y < newHeight; y++ {
-			for x := 0; x < width; x++ {
-				val := gray.GetUCharAt(y, x)
-				ch := '█' // 밝기 기반 문자는 개선 가능
-				// foreground 색상: 회색
-				buffer.WriteString(fmt.Sprintf("[#%02x%02x%02x]%c", val, val, val, ch))
-			}
-			buffer.WriteString("\n")
+			rowJobs <- y
 		}
+		close(rowJobs)
+
+		wg.Add(newHeight)
+		for i := 0; i < numWorkers; i++ {
+			go func() {
+				for y := range rowJobs {
+					var line bytes.Buffer
+					for x := 0; x < width; x++ {
+						val := gray.GetUCharAt(y, x)
+						ch := '█'
+						line.WriteString(fmt.Sprintf("[#%02x%02x%02x]%c", val, val, val, ch))
+					}
+					lines[y] = line.String()
+					wg.Done()
+				}
+			}()
+		}
+		wg.Wait()
+	}
+
+	var buffer bytes.Buffer
+	for _, line := range lines {
+		buffer.WriteString(line)
+		buffer.WriteString("\n")
 	}
 
 	return buffer.String(), nil
