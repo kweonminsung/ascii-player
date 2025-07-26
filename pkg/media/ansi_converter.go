@@ -40,7 +40,7 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 	gocv.Resize(img, &resized, image.Pt(width, newHeight), 0, 0, gocv.InterpolationLinear)
 
 	if color {
-		// 컬러 ANSI 모드
+		// 컬러 tview 모드
 		for y := 0; y < newHeight; y++ {
 			for x := 0; x < width; x++ {
 				vec := resized.GetVecbAt(y, x) // BGR
@@ -49,13 +49,13 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 				// 문자 선택
 				ch := '█'
 
-				// ANSI 24bit 전경색 설정 + 문자 출력
-				buffer.WriteString(fmt.Sprintf("\x1b[38;2;%d;%d;%dm%c", r, g, b, ch))
+				// tview의 24비트 전경색 설정 + 문자 출력
+				buffer.WriteString(fmt.Sprintf("[#%02x%02x%02x]%c", r, g, b, ch))
 			}
-			buffer.WriteString("\x1b[0m\n")
+			buffer.WriteString("\n")
 		}
 	} else {
-		// 흑백 ANSI 모드 (회색조)
+		// 흑백 모드 (회색조)
 		gray := gocv.NewMat()
 		defer gray.Close()
 		gocv.CvtColor(resized, &gray, gocv.ColorBGRToGray)
@@ -65,9 +65,9 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 				val := gray.GetUCharAt(y, x)
 				ch := '█' // 밝기 기반 문자는 개선 가능
 				// foreground 색상: 회색
-				buffer.WriteString(fmt.Sprintf("\x1b[38;2;%d;%d;%dm%c", val, val, val, ch))
+				buffer.WriteString(fmt.Sprintf("[#%02x%02x%02x]%c", val, val, val, ch))
 			}
-			buffer.WriteString("\x1b[0m\n")
+			buffer.WriteString("\n")
 		}
 	}
 

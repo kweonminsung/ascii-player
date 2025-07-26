@@ -144,7 +144,7 @@ func (p *Player) Play() error {
 	return p.playWithTUI()
 }
 
-// playWithTUI plays video using TUI interface for ASCII mode
+// playWithTUI plays video using TUI interface for both ASCII and Pixel modes
 func (p *Player) playWithTUI() error {
 	// Set up key bindings
 	p.setupKeyBindings()
@@ -160,10 +160,13 @@ func (p *Player) playWithTUI() error {
 	// Handle interrupt signals
 	go p.handleInterrupt()
 
-	// Start playback loop for 해당 모드
-	if p.mode == "pixel" {
+	// Start playback loop based on the selected mode
+	switch p.mode {
+	case "pixel":
 		go p.pixelPlaybackLoop()
-	} else {
+	case "ascii":
+		fallthrough
+	default:
 		go p.asciiPlaybackLoop()
 	}
 
