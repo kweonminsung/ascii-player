@@ -116,3 +116,13 @@ func (p *AsciiPlayer) GetVideoInfo() map[string]interface{} {
 		"height": p.config.Height,
 	}
 }
+
+// GetVideoWidth returns the original width of the video.
+func (p *AsciiPlayer) GetVideoWidth() int {
+	return p.extractor.GetWidth()
+}
+
+// GetVideoHeight returns the original height of the video.
+func (p *AsciiPlayer) GetVideoHeight() int {
+	return p.extractor.GetHeight()
+}

@@ -11,10 +11,12 @@ import (
 
 // FrameExtractor는 비디오 소스를 열고 프레임을 제어하는 기능을 제공합니다.
 type FrameExtractor struct {
-	vc      *gocv.VideoCapture
-	source  string
+	vc        *gocv.VideoCapture
+	source    string
 	isYouTube bool
-	fps     float64
+	fps       float64
+	width     int
+	height    int
 }
 
 // NewFrameExtractor는 새로운 FrameExtractor 인스턴스를 생성합니다.
@@ -47,12 +49,16 @@ func NewFrameExtractor(source string, isYouTube bool) (*FrameExtractor, error) {
 	}
 
 	fps := vc.Get(gocv.VideoCaptureFPS)
+	width := int(vc.Get(gocv.VideoCaptureFrameWidth))
+	height := int(vc.Get(gocv.VideoCaptureFrameHeight))
 
 	return &FrameExtractor{
-		vc:      vc,
-		source:  source,
+		vc:        vc,
+		source:    source,
 		isYouTube: isYouTube,
-		fps:     fps,
+		fps:       fps,
+		width:     width,
+		height:    height,
 	}, nil
 }
 
@@ -83,13 +89,23 @@ func (c *FrameExtractor) GetFrameAt(d time.Duration) (gocv.Mat, error) {
 	if err := c.Seek(d); err != nil {
 		return gocv.Mat{}, err
 	}
-	c.vc.Grab(1) 
+	c.vc.Grab(1)
 	return c.ReadNextFrame()
 }
 
 // GetFPS는 비디오의 FPS를 반환합니다.
 func (c *FrameExtractor) GetFPS() float64 {
 	return c.fps
+}
+
+// GetWidth returns the width of the video.
+func (c *FrameExtractor) GetWidth() int {
+	return c.width
+}
+
+// GetHeight returns the height of the video.
+func (c *FrameExtractor) GetHeight() int {
+	return c.height
 }
 
 // Close는 사용된 모든 리소스를 해제합니다.

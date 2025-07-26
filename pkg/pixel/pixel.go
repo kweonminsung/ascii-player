@@ -115,3 +115,13 @@ func (p *PixelPlayer) GetVideoInfo() map[string]interface{} {
 		"height": p.config.Height,
 	}
 }
+
+// GetVideoWidth returns the original width of the video.
+func (p *PixelPlayer) GetVideoWidth() int {
+	return p.extractor.GetWidth()
+}
+
+// GetVideoHeight returns the original height of the video.
+func (p *PixelPlayer) GetVideoHeight() int {
+	return p.extractor.GetHeight()
+}

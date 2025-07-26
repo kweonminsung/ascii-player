@@ -44,6 +44,8 @@ type Player struct {
 	startTime    time.Time
 	width        int
 	height       int
+	videoWidth   int
+	videoHeight  int
 
 	// Player instances for different modes
 	asciiPlayer *ascii.AsciiPlayer
@@ -88,6 +90,8 @@ func (p *Player) LoadFrames() error {
 			return fmt.Errorf("failed to create pixel player: %v", err)
 		}
 		p.pixelPlayer = pixelPlayer
+		p.videoWidth = pixelPlayer.GetVideoWidth()
+		p.videoHeight = pixelPlayer.GetVideoHeight()
 		return nil
 	case "ascii":
 		fallthrough
@@ -106,6 +110,8 @@ func (p *Player) LoadFrames() error {
 			return fmt.Errorf("failed to create ASCII player: %v", err)
 		}
 		p.asciiPlayer = asciiPlayer
+		p.videoWidth = asciiPlayer.GetVideoWidth()
+		p.videoHeight = asciiPlayer.GetVideoHeight()
 		return nil
 	}
 }

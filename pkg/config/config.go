@@ -44,8 +44,8 @@ func (m *Manager) GetConfigPath() string {
 // CreateDefault creates a default configuration
 func (m *Manager) CreateDefault() *Data {
 	return &Data{
-		Mode:  "ascii",
-		Color: false,
+		Mode:  "pixel",
+		Color: true,
 		FPS:   30,
 		Loop:  false,
 	}
