@@ -6,31 +6,29 @@ import (
 	"time"
 
 	"github.com/kweonminsung/ascii-player/pkg/media"
-	"gocv.io/x/gocv"
+	"github.com/kweonminsung/ascii-player/pkg/types"
 )
 
 // Player represents an ASCII video player
 type AsciiPlayer struct {
 	extractor *media.FrameExtractor
-	converter *GrayConverter
-	width     int
-	height    int
+	converter *media.AsciiConverter
+	config    types.PlayerConfig
 }
 
-// NewAsciiPlayer creates a new ASCII player for the given video source
-func NewAsciiPlayer(videoSource string, isYouTube bool, width, height int) (*AsciiPlayer, error) {
-	extractor, err := media.NewFrameExtractor(videoSource, isYouTube)
+// NewAsciiPlayer creates a new ASCII player instance
+func NewAsciiPlayer(source string, config types.PlayerConfig) (*AsciiPlayer, error) {
+	extractor, err := media.NewFrameExtractor(source, config.IsYouTube)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create frame extractor: %v", err)
 	}
 
-	converter := NewGrayConverter("")
+	converter := media.NewAsciiConverter()
 
 	return &AsciiPlayer{
 		extractor: extractor,
 		converter: converter,
-		width:     width,
-		height:    height,
+		config:    config,
 	}, nil
 }
 
@@ -58,7 +56,7 @@ func (p *AsciiPlayer) GetFrameAt(seekTime time.Duration) (string, error) {
 		return "", fmt.Errorf("got empty frame at %v", seekTime)
 	}
 
-	asciiArt, err := p.converter.Convert(frame, p.width, p.height)
+	asciiArt, err := p.converter.Convert(frame, p.config.Width, p.config.Height, p.config.Color)
 	if err != nil {
 		return "", fmt.Errorf("failed to convert frame to ASCII: %v", err)
 	}
@@ -82,7 +80,7 @@ func (p *AsciiPlayer) PlayConsecutiveFrames(frameCount int) error {
 			break
 		}
 
-		asciiArt, err := p.converter.Convert(frame, p.width, p.height)
+		asciiArt, err := p.converter.Convert(frame, p.config.Width, p.config.Height, p.config.Color)
 		frame.Close()
 
 		if err != nil {
@@ -114,20 +112,22 @@ func (p *AsciiPlayer) PlayFrameAtTime(seekTime time.Duration) error {
 func (p *AsciiPlayer) GetVideoInfo() map[string]interface{} {
 	return map[string]interface{}{
 		"fps":    p.GetFPS(),
-		"width":  p.width,
-		"height": p.height,
+		"width":  p.config.Width,
+		"height": p.config.Height,
 	}
-}
-
-// ConvertFrameToASCII converts a single frame to ASCII art (utility function)
-func ConvertFrameToASCII(frame gocv.Mat, width, height int, charset string) (string, error) {
-	converter := NewGrayConverter(charset)
-	return converter.Convert(frame, width, height)
 }
 
 // PlayYouTubeVideo is a convenience function to play a YouTube video as ASCII art
 func PlayYouTubeVideo(youtubeURL string, width, height int, seekTime time.Duration, frameCount int) error {
-	player, err := NewAsciiPlayer(youtubeURL, true, width, height)
+	player, err := NewAsciiPlayer(youtubeURL,
+		types.PlayerConfig{
+			Width:     width,
+			Height:    height,
+			FPS:       30,
+			Loop:      false,
+			Source:    youtubeURL,
+			IsYouTube: true,
+		})
 	if err != nil {
 		return fmt.Errorf("failed to create player: %v", err)
 	}
@@ -159,7 +159,14 @@ func PlayYouTubeVideo(youtubeURL string, width, height int, seekTime time.Durati
 
 // PlayLocalVideo is a convenience function to play a local video file as ASCII art
 func PlayLocalVideo(filePath string, width, height int, frameCount int) error {
-	player, err := NewAsciiPlayer(filePath, false, width, height)
+	player, err := NewAsciiPlayer(filePath, types.PlayerConfig{
+		Width:     width,
+		Height:    height,
+		FPS:       30,
+		Loop:      false,
+		Source:    filePath,
+		IsYouTube: false,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create player: %v", err)
 	}

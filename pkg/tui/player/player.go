@@ -1,4 +1,4 @@
-package tui
+package player
 
 import (
 	"fmt"
@@ -11,6 +11,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/kweonminsung/ascii-player/pkg/ascii"
 	"github.com/kweonminsung/ascii-player/pkg/pixel"
+	"github.com/kweonminsung/ascii-player/pkg/types"
+	"github.com/kweonminsung/ascii-player/pkg/utils"
 	"github.com/rivo/tview"
 )
 
@@ -18,7 +20,7 @@ import (
 func getPlayerModeTitle(mode string) string {
 	switch mode {
 	case "pixel":
-		return "Pixel"
+		return "PIXEL"
 	case "ascii":
 		return "ASCII"
 	default:
@@ -86,14 +88,26 @@ func NewPlayer(filename string, fps int, loop bool, resolution string, color boo
 
 // LoadFrames loads frames for playback
 func (p *Player) LoadFrames() error {
+	width, height := 120, 40 // Default values
+	if p.resolution != "" {
+		fmt.Sscanf(p.resolution, "%dx%d", &width, &height)
+	}
+
+	// Check if it's a YouTube URL
+	isYouTube := utils.IsValidYouTubeURL(p.filename)
+
 	switch p.mode {
 	case "pixel":
-		config := pixel.PlayerConfig{
-			FPS:    p.fps,
-			Loop:   p.loop,
-			Source: p.filename,
-		}
-		pixelPlayer, err := pixel.NewPixelPlayer(p.filename, config)
+		pixelPlayer, err := pixel.NewPixelPlayer(p.filename, types.PlayerConfig{
+			Mode:      "pixel",
+			Color:     p.color,
+			Width:     width,
+			Height:    height,
+			FPS:       p.fps,
+			Loop:      p.loop,
+			Source:    p.filename,
+			IsYouTube: isYouTube,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create pixel player: %v", err)
 		}
@@ -102,16 +116,16 @@ func (p *Player) LoadFrames() error {
 	case "ascii":
 		fallthrough
 	default:
-		// Parse resolution for ASCII player
-		width, height := 120, 40 // Default values
-		if p.resolution != "" {
-			fmt.Sscanf(p.resolution, "%dx%d", &width, &height)
-		}
-
-		// Check if it's a YouTube URL
-		isYouTube := pixel.IsValidYouTubeURL(p.filename)
-
-		asciiPlayer, err := ascii.NewAsciiPlayer(p.filename, isYouTube, width, height)
+		asciiPlayer, err := ascii.NewAsciiPlayer(p.filename, types.PlayerConfig{
+			Mode:      "ascii",
+			Color:     p.color,
+			Width:     width,
+			Height:    height,
+			FPS:       p.fps,
+			Loop:      p.loop,
+			Source:    p.filename,
+			IsYouTube: isYouTube,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create ASCII player: %v", err)
 		}
@@ -126,22 +140,8 @@ func (p *Player) Play() error {
 		return fmt.Errorf("failed to load frames: %v", err)
 	}
 
-	switch p.mode {
-	case "pixel":
-		if p.pixelPlayer == nil {
-			return fmt.Errorf("pixel player not initialized")
-		}
-		// For pixel mode, directly use the pixel player
-		return p.pixelPlayer.Play()
-	case "ascii":
-		fallthrough
-	default:
-		if p.asciiPlayer == nil {
-			return fmt.Errorf("ASCII player not initialized")
-		}
-		// For ASCII mode, use the TUI wrapper
-		return p.playWithTUI()
-	}
+	// 모든 모드에서 TUI를 사용
+	return p.playWithTUI()
 }
 
 // playWithTUI plays video using TUI interface for ASCII mode
@@ -160,8 +160,12 @@ func (p *Player) playWithTUI() error {
 	// Handle interrupt signals
 	go p.handleInterrupt()
 
-	// Start playback loop for ASCII mode
-	go p.asciiPlaybackLoop()
+	// Start playback loop for 해당 모드
+	if p.mode == "pixel" {
+		go p.pixelPlaybackLoop()
+	} else {
+		go p.asciiPlaybackLoop()
+	}
 
 	// Initialize status view
 	go p.updateStatusView()
@@ -199,7 +203,16 @@ func (p *Player) setupKeyBindings() {
 						go p.updateStatusView()
 					}
 				} else if p.mode == "pixel" {
-					// Pixel 모드는 직접 처리하지 않음 (pixel player에서 처리)
+					// Pixel 모드 재시작
+					if p.isPlaying || p.isPaused {
+						p.currentFrame = 0
+						p.isPaused = false
+						if !p.isPlaying {
+							p.isPlaying = true
+							go p.pixelPlaybackLoop()
+						}
+						go p.updateStatusView()
+					}
 				}
 				return nil
 			}
@@ -224,7 +237,7 @@ func (p *Player) updateStatusView() {
 	}
 
 	frameInfo := ""
-	if p.mode == "ascii" {
+	if p.mode == "ascii" || p.mode == "pixel" {
 		frameInfo = fmt.Sprintf("Frame: %d/%d", p.currentFrame+1, len(p.frames))
 	} else {
 		frameInfo = "Frame: N/A"
@@ -249,7 +262,6 @@ func (p *Player) asciiPlaybackLoop() {
 		return
 	}
 
-	// Get video FPS if not set
 	fps := p.fps
 	if fps <= 0 {
 		fps = int(p.asciiPlayer.GetFPS())
@@ -280,6 +292,7 @@ func (p *Player) asciiPlaybackLoop() {
 				p.textView.SetText(frame)
 			})
 
+			p.currentFrame++
 			p.updateStatusView()
 			currentTime += frameDuration
 
@@ -287,6 +300,63 @@ func (p *Player) asciiPlaybackLoop() {
 			if currentTime > time.Minute*10 { // Arbitrary limit, should be replaced with actual video duration
 				if p.loop {
 					currentTime = 0
+					p.currentFrame = 0
+				} else {
+					p.isPlaying = false
+					p.displayEndMessage()
+					p.updateStatusView()
+					return
+				}
+			}
+		}
+	}
+}
+
+// pixelPlaybackLoop handles frame playback for Pixel mode
+func (p *Player) pixelPlaybackLoop() {
+	if p.pixelPlayer == nil {
+		return
+	}
+
+	fps := p.fps
+	if fps <= 0 {
+		fps = int(p.pixelPlayer.GetFPS())
+		if fps <= 0 {
+			fps = 30
+		}
+	}
+
+	ticker := time.NewTicker(time.Second / time.Duration(fps))
+	defer ticker.Stop()
+
+	p.isPlaying = true
+	currentTime := time.Duration(0)
+	frameDuration := time.Second / time.Duration(fps)
+
+	for range ticker.C {
+		if !p.isPlaying {
+			return
+		}
+		if !p.isPaused {
+			frame, err := p.pixelPlayer.GetFrameAt(currentTime)
+			if err != nil {
+				log.Printf("Error getting pixel frame: %v", err)
+				continue
+			}
+
+			p.app.QueueUpdateDraw(func() {
+				p.textView.SetText(frame)
+			})
+
+			p.currentFrame++
+			p.updateStatusView()
+			currentTime += frameDuration
+
+			// Check if we've reached the end
+			if currentTime > time.Minute*10 { // Arbitrary limit, should be replaced with actual video duration
+				if p.loop {
+					currentTime = 0
+					p.currentFrame = 0
 				} else {
 					p.isPlaying = false
 					p.displayEndMessage()

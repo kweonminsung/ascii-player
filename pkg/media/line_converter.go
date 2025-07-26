@@ -1,10 +1,11 @@
-package ascii
+package media
 
 import (
 	"bytes"
 	"image"
 	"math"
 
+	"github.com/kweonminsung/ascii-player/pkg/types"
 	"gocv.io/x/gocv"
 )
 
@@ -13,7 +14,7 @@ const LineCharset = `|/—\`
 
 // LineConverter는 이미지의 경계선을 감지하여 라인 문자로 변환하는 기능을 제공합니다.
 type LineConverter struct {
-	charset         []rune
+	charset           []rune
 	gradientThreshold float64
 }
 
@@ -26,7 +27,7 @@ func NewLineConverter(charset string, threshold float64) *LineConverter {
 		threshold = 30.0 // 기본 임계값
 	}
 	return &LineConverter{
-		charset:         []rune(charset),
+		charset:           []rune(charset),
 		gradientThreshold: threshold,
 	}
 }
@@ -39,7 +40,7 @@ func (c *LineConverter) Convert(img gocv.Mat, width, height int) (string, error)
 	originalWidth := float64(img.Cols())
 	originalHeight := float64(img.Rows())
 	aspectRatio := originalHeight / originalWidth
-	newHeight := int(float64(width) * aspectRatio * YScaleFactor)
+	newHeight := int(float64(width) * aspectRatio * types.YScaleFactor)
 	if newHeight <= 0 {
 		newHeight = 1
 	}

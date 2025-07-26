@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/kweonminsung/ascii-player/pkg/tui"
+	"github.com/kweonminsung/ascii-player/pkg/tui/player"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +44,7 @@ var youtubeCmd = &cobra.Command{
 		fmt.Printf("Settings - FPS: %d, Loop: %t, Resolution: %s, Color: %t, Mode: %s\n", fps, loop, resolution, color, mode)
 
 		// Create and start TUI player
-		player := tui.NewPlayer(youtubeURL, fps, loop, resolution, color, mode)
+		player := player.NewPlayer(youtubeURL, fps, loop, resolution, color, mode)
 
 		err := player.Play()
 		if err != nil {
