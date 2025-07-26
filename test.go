@@ -32,6 +32,7 @@ func main() {
 	}
 
 	// ASCII 변환기 생성
+	// converter := ascii.NewLineConverter("", 450.0)
 	converter := ascii.NewGrayConverter("")
 
 	if !frame.Empty() {
