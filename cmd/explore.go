@@ -57,6 +57,10 @@ func explore(cmd *cobra.Command, args []string) {
 	})
 
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if videoList.HasFocus() {
+			// Let the list handle the Enter key
+			return event
+		}
 		switch event.Key() {
 		case tcell.KeyEnter:
 			var query string
@@ -77,8 +81,9 @@ func explore(cmd *cobra.Command, args []string) {
 						updateVideoList(videoList, videos, app)
 					})
 				}()
+				return nil // Consume the event
 			}
-			return nil // Consume the event
+			return event
 		case tcell.KeyTab:
 			if suggestionsList.HasFocus() && suggestionsList.GetItemCount() > 0 {
 				query, _ := suggestionsList.GetItemText(suggestionsList.GetCurrentItem())
