@@ -250,12 +250,7 @@ func (p *Player) handleEvents() {
 						}
 					}
 				} else if ev.Rune() == 'r' || ev.Rune() == 'R' {
-					p.startTime = time.Now()
-					p.currentFrame = 0
-					p.isPaused = false
-					if p.audioPlayer != nil {
-						p.audioPlayer.Rewind()
-					}
+					p.rewind()
 				} else if ev.Key() == tcell.KeyRight {
 					p.seek(5 * time.Second)
 				} else if ev.Key() == tcell.KeyLeft {
@@ -286,6 +281,31 @@ func (p *Player) seek(duration time.Duration) {
 		if err := p.audioPlayer.Seek(duration); err != nil {
 			log.Printf("failed to seek audio: %v", err)
 		}
+	}
+}
+
+func (p *Player) rewind() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	p.startTime = time.Now()
+	p.currentFrame = 0
+	p.isPaused = false
+
+	switch p.mode {
+	case "pixel":
+		if p.pixelPlayer != nil {
+			p.pixelPlayer.Seek(-999 * time.Hour) // Seek to beginning
+		}
+	case "ascii":
+		fallthrough
+	default:
+		if p.asciiPlayer != nil {
+			p.asciiPlayer.Seek(-999 * time.Hour) // Seek to beginning
+		}
+	}
+	if p.audioPlayer != nil {
+		p.audioPlayer.Rewind()
 	}
 }
 
