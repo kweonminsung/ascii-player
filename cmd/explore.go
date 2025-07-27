@@ -24,7 +24,6 @@ var exploreCmd = &cobra.Command{
 type Video struct {
 	Title       string
 	URL         string
-	Thumbnail   string
 	Uploader    string
 	PublishedAt string
 }
@@ -136,21 +135,91 @@ func searchYoutube(query string) []Video {
 	c := colly.NewCollector()
 	videos := []Video{}
 
-	c.OnHTML("ytd-video-renderer", func(e *colly.HTMLElement) {
-		videoURL := "https://www.youtube.com" + e.ChildAttr("a#video-title", "href")
-		// Skip shorts and other non-standard videos
-		if !strings.Contains(videoURL, "watch?v=") {
-			return
-		}
+	c.OnHTML("script", func(e *colly.HTMLElement) {
+		if strings.Contains(e.Text, "var ytInitialData") {
+			// Extract the JSON part
+			jsonString := strings.TrimPrefix(e.Text, "var ytInitialData = ")
+			jsonString = strings.TrimSuffix(jsonString, ";")
 
-		video := Video{
-			Title:       e.ChildAttr("a#video-title", "title"),
-			URL:         videoURL,
-			Thumbnail:   e.ChildAttr("img.yt-core-image", "src"),
-			Uploader:    e.ChildText("a.yt-simple-endpoint.style-scope.yt-formatted-string"),
-			PublishedAt: e.ChildText("span.style-scope.ytd-video-meta-block"),
+			var data map[string]interface{}
+			if err := json.Unmarshal([]byte(jsonString), &data); err != nil {
+				log.Println("Failed to parse ytInitialData JSON:", err)
+				return
+			}
+
+			contents, ok := data["contents"].(map[string]interface{})
+			if !ok {
+				return
+			}
+			twoCol, ok := contents["twoColumnSearchResultsRenderer"].(map[string]interface{})
+			if !ok {
+				return
+			}
+			primary, ok := twoCol["primaryContents"].(map[string]interface{})
+			if !ok {
+				return
+			}
+			sectionList, ok := primary["sectionListRenderer"].(map[string]interface{})
+			if !ok {
+				return
+			}
+			sectionContents, ok := sectionList["contents"].([]interface{})
+			if !ok || len(sectionContents) == 0 {
+				return
+			}
+			itemSection, ok := sectionContents[0].(map[string]interface{})
+			if !ok {
+				return
+			}
+			itemSectionRenderer, ok := itemSection["itemSectionRenderer"].(map[string]interface{})
+			if !ok {
+				return
+			}
+			videoItems, ok := itemSectionRenderer["contents"].([]interface{})
+			if !ok {
+				return
+			}
+
+			for _, item := range videoItems {
+				videoRenderer, ok := item.(map[string]interface{})["videoRenderer"].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				videoId, ok := videoRenderer["videoId"].(string)
+				if !ok {
+					continue
+				}
+				titleRuns, ok := videoRenderer["title"].(map[string]interface{})["runs"].([]interface{})
+				if !ok || len(titleRuns) == 0 {
+					continue
+				}
+				title, ok := titleRuns[0].(map[string]interface{})["text"].(string)
+				if !ok {
+					continue
+				}
+				ownerTextRuns, ok := videoRenderer["ownerText"].(map[string]interface{})["runs"].([]interface{})
+				if !ok || len(ownerTextRuns) == 0 {
+					continue
+				}
+				uploader, ok := ownerTextRuns[0].(map[string]interface{})["text"].(string)
+				if !ok {
+					continue
+				}
+				publishedTime, ok := videoRenderer["publishedTimeText"].(map[string]interface{})["simpleText"].(string)
+				if !ok {
+					publishedTime = "N/A"
+				}
+
+				video := Video{
+					Title:       title,
+					URL:         "https://www.youtube.com/watch?v=" + videoId,
+					Uploader:    uploader,
+					PublishedAt: publishedTime,
+				}
+				videos = append(videos, video)
+			}
 		}
-		videos = append(videos, video)
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
@@ -165,10 +234,13 @@ func searchYoutube(query string) []Video {
 
 func updateVideoList(list *tview.List, videos []Video, app *tview.Application) {
 	list.Clear()
+	if len(videos) == 0 {
+		list.AddItem("No videos found", "", 0, nil)
+		return
+	}
 	for _, video := range videos {
 		videoCopy := video // Create a copy to avoid closure issues
-		// Displaying thumbnail URL as secondary text.
-		secondaryText := fmt.Sprintf("By: %s | Published: %s | Thumbnail: %s", videoCopy.Uploader, videoCopy.PublishedAt, videoCopy.Thumbnail)
+		secondaryText := fmt.Sprintf("By: %s | Published: %s", videoCopy.Uploader, videoCopy.PublishedAt)
 		list.AddItem(videoCopy.Title, secondaryText, 0, func() {
 			app.Stop()
 			playVideo(videoCopy.URL)

@@ -12,15 +12,16 @@ var youtubeCmd = &cobra.Command{
 	Use:   "youtube [url]",
 	Short: "Play ASCII/Pixel animations from a YouTube video",
 	Long:  `Play ASCII/Pixel animations from a specified YouTube video URL. The video will be streamed and converted to ASCII art or pixel art in real-time and displayed in the terminal. Supports options for mode, FPS, looping, and resolution.`,
-	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		var youtubeURL string
-		if len(args) > 0 {
-			youtubeURL = args[0]
-		} else {
-			fmt.Println("Error: Please specify a YouTube URL to play")
-			fmt.Println("Usage: console-cinema youtube <youtube_url>")
-			fmt.Println("Example: console-cinema youtube https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+		if len(args) == 0 {
+			cmd.Help()
+			return
+		}
+
+		youtubeURL := args[0]
+		// The 'explore' command is a subcommand, so if the arg is 'explore',
+		// cobra will handle it. We just need to avoid treating 'explore' as a URL.
+		if youtubeURL == "explore" {
 			return
 		}
 
