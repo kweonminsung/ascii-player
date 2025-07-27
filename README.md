@@ -46,15 +46,25 @@ Use the `play` command to play local video files.
 
 ### Playing YouTube Videos
 
-Use the `youtube` command to play a video from a YouTube link.
+Use the `youtube play` command to play a video from a YouTube link.
 
 ```bash
-# Play in the default mode (ascii)
-./console-cinema youtube "https://www.youtube.com/watch?v=your_video_id"
+# Play in the default mode (pixel)
+./console-cinema youtube play "https://www.youtube.com/watch?v=your_video_id"
 
-# Play in pixel mode
-./console-cinema youtube "https://www.youtube.com/watch?v=your_video_id" --mode pixel
+# Play in ascii mode
+./console-cinema youtube play "https://www.youtube.com/watch?v=your_video_id" --mode ascii
 ```
+
+### Exploring YouTube Videos
+
+Use the `youtube explore` command to search for videos on YouTube and select one to play.
+
+```bash
+./console-cinema youtube explore
+```
+
+This will open an interactive search interface in your terminal.
 
 ### Available Commands
 
@@ -66,7 +76,7 @@ Usage:
 
 Available Commands:
   play        Play local video files (MP4, AVI, etc.)
-  youtube     Play YouTube videos by URL
+  youtube     Play or explore YouTube videos
   help        Help about any command
 
 Flags:
