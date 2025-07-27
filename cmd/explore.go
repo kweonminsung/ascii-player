@@ -154,41 +154,53 @@ func searchYoutube(query string) []Video {
 
 			contents, ok := data["contents"].(map[string]interface{})
 			if !ok {
+				log.Println("contents not found in ytInitialData")
 				return
 			}
 			twoCol, ok := contents["twoColumnSearchResultsRenderer"].(map[string]interface{})
 			if !ok {
+				log.Println("twoColumnSearchResultsRenderer not found")
 				return
 			}
 			primary, ok := twoCol["primaryContents"].(map[string]interface{})
 			if !ok {
+				log.Println("primaryContents not found")
 				return
 			}
 			sectionList, ok := primary["sectionListRenderer"].(map[string]interface{})
 			if !ok {
+				log.Println("sectionListRenderer not found")
 				return
 			}
 			sectionContents, ok := sectionList["contents"].([]interface{})
 			if !ok || len(sectionContents) == 0 {
+				log.Println("contents array not found or empty in sectionListRenderer")
 				return
 			}
 			itemSection, ok := sectionContents[0].(map[string]interface{})
 			if !ok {
+				log.Println("itemSection not found in contents")
 				return
 			}
 			itemSectionRenderer, ok := itemSection["itemSectionRenderer"].(map[string]interface{})
 			if !ok {
+				log.Println("itemSectionRenderer not found")
 				return
 			}
 			videoItems, ok := itemSectionRenderer["contents"].([]interface{})
 			if !ok {
+				log.Println("contents not found in itemSectionRenderer")
 				return
 			}
 
 			for _, item := range videoItems {
-				videoRenderer, ok := item.(map[string]interface{})["videoRenderer"].(map[string]interface{})
+				itemMap, ok := item.(map[string]interface{})
 				if !ok {
 					continue
+				}
+				videoRenderer, ok := itemMap["videoRenderer"].(map[string]interface{})
+				if !ok {
+					continue // Not a video item, could be a playlist or ad
 				}
 
 				videoId, ok := videoRenderer["videoId"].(string)
