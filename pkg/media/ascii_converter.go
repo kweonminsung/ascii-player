@@ -49,6 +49,10 @@ func (c *AsciiConverter) Convert(img gocv.Mat, width, height int, color bool) (s
 	numWorkers := runtime.NumCPU()
 
 	if color {
+		gray := gocv.NewMat()
+		defer gray.Close()
+		gocv.CvtColor(resized, &gray, gocv.ColorBGRToGray)
+
 		rowJobs := make(chan int, newHeight)
 		for y := 0; y < newHeight; y++ {
 			rowJobs <- y
@@ -61,21 +65,18 @@ func (c *AsciiConverter) Convert(img gocv.Mat, width, height int, color bool) (s
 				for y := range rowJobs {
 					var line bytes.Buffer
 					for x := 0; x < width; x++ {
-						vec := resized.GetVecbAt(y, x) // BGR 형식
-						b, g, r := vec[0], vec[1], vec[2]
-						var ch rune
-						if r > g && r > b {
-							ch = '@'
-						} else if g > r && g > b {
-							ch = '&'
-						} else if b > r && b > g {
-							ch = '#'
-						} else {
-							ch = '.'
+						pixel := gray.GetUCharAt(y, x)
+						idx := int(float64(pixel) / 255.0 * float64(len(c.charset)))
+						if idx >= len(c.charset) {
+							idx = len(c.charset) - 1
 						}
-						line.WriteString(fmt.Sprintf("\x1b[38;2;%d;%d;%dm%c", r, g, b, ch))
+						ch := c.charset[idx]
+
+						vec := resized.GetVecbAt(y, x)
+						b, g, r := vec[0], vec[1], vec[2]
+
+						line.WriteString(fmt.Sprintf("[#%02x%02x%02x]%c", r, g, b, ch))
 					}
-					line.WriteString("\x1b[0m")
 					lines[y] = line.String()
 					wg.Done()
 				}
