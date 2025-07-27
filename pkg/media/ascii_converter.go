@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/kweonminsung/ascii-player/pkg/types"
 	"gocv.io/x/gocv"
 )
 
@@ -35,25 +34,7 @@ func (c *AsciiConverter) Convert(img gocv.Mat, width, height int, color bool) (s
 		return "", fmt.Errorf("invalid image dimensions: %dx%d", int(originalWidth), int(originalHeight))
 	}
 
-	imageAspectRatio := (originalHeight * types.YScaleFactor) / originalWidth
-	containerAspectRatio := float64(height) / float64(width)
-
-	var newWidth, newHeight int
-
-	if imageAspectRatio > containerAspectRatio {
-		newHeight = height
-		newWidth = int(float64(newHeight) / imageAspectRatio)
-	} else {
-		newWidth = width
-		newHeight = int(float64(newWidth) * imageAspectRatio)
-	}
-
-	if newWidth <= 0 {
-		newWidth = 1
-	}
-	if newHeight <= 0 {
-		newHeight = 1
-	}
+	newWidth, newHeight := width, height
 
 	resized := gocv.NewMat()
 	defer resized.Close()

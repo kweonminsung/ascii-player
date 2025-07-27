@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/kweonminsung/ascii-player/pkg/types"
 	"gocv.io/x/gocv"
 )
 
@@ -27,29 +26,7 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 		return "", fmt.Errorf("invalid image dimensions: %dx%d", int(originalWidth), int(originalHeight))
 	}
 
-	// YScaleFactor는 문자 높이가 너비보다 크기 때문에 이를 보정하기 위해 사용됩니다.
-	// "표시" 종횡비를 얻기 위해 원본 이미지 높이에 적용합니다.
-	imageAspectRatio := (originalHeight * types.YScaleFactor) / originalWidth
-	containerAspectRatio := float64(height) / float64(width)
-
-	var newWidth, newHeight int
-
-	if imageAspectRatio > containerAspectRatio {
-		// 이미지가 컨테이너보다 세로로 길거나 얇으므로 높이에 맞춥니다 (레터박스).
-		newHeight = height
-		newWidth = int(float64(newHeight) / imageAspectRatio)
-	} else {
-		// 이미지가 컨테이너보다 가로로 넓거나 짧으므로 너비에 맞춥니다 (필러박스).
-		newWidth = width
-		newHeight = int(float64(newWidth) * imageAspectRatio)
-	}
-
-	if newWidth <= 0 {
-		newWidth = 1
-	}
-	if newHeight <= 0 {
-		newHeight = 1
-	}
+	newWidth, newHeight := width, height
 
 	resized := gocv.NewMat()
 	defer resized.Close()
