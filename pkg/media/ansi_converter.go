@@ -23,22 +23,37 @@ func NewAnsiConverter() *AnsiConverter {
 func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (string, error) {
 	originalWidth := float64(img.Cols())
 	originalHeight := float64(img.Rows())
-	if originalWidth == 0 {
-		return "", fmt.Errorf("invalid image width: 0")
+	if originalWidth == 0 || originalHeight == 0 {
+		return "", fmt.Errorf("invalid image dimensions: %dx%d", int(originalWidth), int(originalHeight))
 	}
 
-	aspectRatio := originalHeight / originalWidth
-	newHeight := int(float64(width) * aspectRatio * types.YScaleFactor)
+	// YScaleFactor는 문자 높이가 너비보다 크기 때문에 이를 보정하기 위해 사용됩니다.
+	// "표시" 종횡비를 얻기 위해 원본 이미지 높이에 적용합니다.
+	imageAspectRatio := (originalHeight * types.YScaleFactor) / originalWidth
+	containerAspectRatio := float64(height) / float64(width)
+
+	var newWidth, newHeight int
+
+	if imageAspectRatio > containerAspectRatio {
+		// 이미지가 컨테이너보다 세로로 길거나 얇으므로 높이에 맞춥니다 (레터박스).
+		newHeight = height
+		newWidth = int(float64(newHeight) / imageAspectRatio)
+	} else {
+		// 이미지가 컨테이너보다 가로로 넓거나 짧으므로 너비에 맞춥니다 (필러박스).
+		newWidth = width
+		newHeight = int(float64(newWidth) * imageAspectRatio)
+	}
+
+	if newWidth <= 0 {
+		newWidth = 1
+	}
 	if newHeight <= 0 {
 		newHeight = 1
-	}
-	if height > 0 && newHeight > height {
-		newHeight = height
 	}
 
 	resized := gocv.NewMat()
 	defer resized.Close()
-	gocv.Resize(img, &resized, image.Pt(width, newHeight), 0, 0, gocv.InterpolationLinear)
+	gocv.Resize(img, &resized, image.Pt(newWidth, newHeight), 0, 0, gocv.InterpolationLinear)
 
 	var buffer = make([][]byte, newHeight)
 	var wg sync.WaitGroup
@@ -52,7 +67,7 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 
 	if color {
 		data := resized.ToBytes()
-		lineSize := width * 3
+		lineSize := newWidth * 3
 
 		wg.Add(numWorkers)
 		for i := 0; i < numWorkers; i++ {
@@ -63,7 +78,7 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 					var line []byte
 					prevColor := ""
 
-					for x := 0; x < width; x++ {
+					for x := 0; x < newWidth; x++ {
 						b := data[offset+3*x]
 						g := data[offset+3*x+1]
 						r := data[offset+3*x+2]
@@ -94,11 +109,11 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 			go func() {
 				defer wg.Done()
 				for y := range rowJobs {
-					offset := y * width
+					offset := y * newWidth
 					var line []byte
 					prevGray := -1
 
-					for x := 0; x < width; x++ {
+					for x := 0; x < newWidth; x++ {
 						val := int(data[offset+x])
 
 						if val != prevGray {

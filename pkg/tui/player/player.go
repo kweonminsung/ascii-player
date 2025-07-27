@@ -174,8 +174,20 @@ func (p *Player) handleEvents() {
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
 			p.screen.Sync()
-			if err := p.LoadFrames(); err != nil {
-				log.Printf("failed to reload frames on resize: %v", err)
+			width, height := p.screen.Size()
+			p.width, p.height = width, height-1 // Subtract 1 for status bar
+
+			switch p.mode {
+			case "pixel":
+				if p.pixelPlayer != nil {
+					p.pixelPlayer.UpdateSize(p.width, p.height)
+				}
+			case "ascii":
+				fallthrough
+			default:
+				if p.asciiPlayer != nil {
+					p.asciiPlayer.UpdateSize(p.width, p.height)
+				}
 			}
 			p.screen.Clear()
 		case *tcell.EventKey:

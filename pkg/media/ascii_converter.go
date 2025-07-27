@@ -31,18 +31,33 @@ func NewAsciiConverter() *AsciiConverter {
 func (c *AsciiConverter) Convert(img gocv.Mat, width, height int, color bool) (string, error) {
 	originalWidth := float64(img.Cols())
 	originalHeight := float64(img.Rows())
-	aspectRatio := originalHeight / originalWidth
-	newHeight := int(float64(width) * aspectRatio * types.YScaleFactor)
+	if originalWidth == 0 || originalHeight == 0 {
+		return "", fmt.Errorf("invalid image dimensions: %dx%d", int(originalWidth), int(originalHeight))
+	}
+
+	imageAspectRatio := (originalHeight * types.YScaleFactor) / originalWidth
+	containerAspectRatio := float64(height) / float64(width)
+
+	var newWidth, newHeight int
+
+	if imageAspectRatio > containerAspectRatio {
+		newHeight = height
+		newWidth = int(float64(newHeight) / imageAspectRatio)
+	} else {
+		newWidth = width
+		newHeight = int(float64(newWidth) * imageAspectRatio)
+	}
+
+	if newWidth <= 0 {
+		newWidth = 1
+	}
 	if newHeight <= 0 {
 		newHeight = 1
-	}
-	if height > 0 && newHeight > height {
-		newHeight = height
 	}
 
 	resized := gocv.NewMat()
 	defer resized.Close()
-	gocv.Resize(img, &resized, image.Point{X: width, Y: newHeight}, 0, 0, gocv.InterpolationLinear)
+	gocv.Resize(img, &resized, image.Point{X: newWidth, Y: newHeight}, 0, 0, gocv.InterpolationLinear)
 
 	lines := make([]string, newHeight)
 	var wg sync.WaitGroup
@@ -64,7 +79,7 @@ func (c *AsciiConverter) Convert(img gocv.Mat, width, height int, color bool) (s
 			go func() {
 				for y := range rowJobs {
 					var line bytes.Buffer
-					for x := 0; x < width; x++ {
+					for x := 0; x < newWidth; x++ {
 						pixel := gray.GetUCharAt(y, x)
 						idx := int(float64(pixel) / 255.0 * float64(len(c.charset)))
 						if idx >= len(c.charset) {
@@ -99,7 +114,7 @@ func (c *AsciiConverter) Convert(img gocv.Mat, width, height int, color bool) (s
 			go func() {
 				for y := range rowJobs {
 					var line bytes.Buffer
-					for x := 0; x < width; x++ {
+					for x := 0; x < newWidth; x++ {
 						pixel := gray.GetUCharAt(y, x)
 						idx := int(float64(pixel) / 255.0 * float64(len(c.charset)))
 						if idx >= len(c.charset) {

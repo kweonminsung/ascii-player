@@ -127,6 +127,12 @@ func (p *AsciiPlayer) GetVideoHeight() int {
 	return p.extractor.GetHeight()
 }
 
+// UpdateSize updates the player's dimensions.
+func (p *AsciiPlayer) UpdateSize(width, height int) {
+	p.config.Width = width
+	p.config.Height = height
+}
+
 // GetNextFrame reads the next frame and converts it to ASCII art.
 func (p *AsciiPlayer) GetNextFrame() (string, error) {
 	frame, err := p.extractor.ReadNextFrame()

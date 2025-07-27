@@ -126,6 +126,12 @@ func (p *PixelPlayer) GetVideoHeight() int {
 	return p.extractor.GetHeight()
 }
 
+// UpdateSize updates the player's dimensions.
+func (p *PixelPlayer) UpdateSize(width, height int) {
+	p.config.Width = width
+	p.config.Height = height
+}
+
 // GetNextFrame reads the next frame and converts it to pixel art.
 func (p *PixelPlayer) GetNextFrame() (string, error) {
 	frame, err := p.extractor.ReadNextFrame()
