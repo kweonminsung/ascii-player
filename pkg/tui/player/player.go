@@ -224,9 +224,7 @@ func (p *Player) handleEvents() {
 		case *tcell.EventKey:
 			if p.isFinished {
 				if ev.Rune() == 'r' || ev.Rune() == 'R' {
-					p.startTime = time.Now()
-					p.currentFrame = 0
-					p.isPaused = false
+					p.rewind()
 					p.isFinished = false
 					p.isPlaying = true
 					p.screen.Clear()
