@@ -50,6 +50,10 @@ type Player struct {
 	videoWidth   int
 	videoHeight  int
 
+	frameCountSinceLastCheck int
+	lastFPSTime              time.Time
+	actualFPS                float64
+
 	// Player instances for different modes
 	asciiPlayer *ascii.AsciiPlayer
 	pixelPlayer *pixel.PixelPlayer
@@ -317,6 +321,7 @@ func (p *Player) playbackLoop() {
 
 	p.isPlaying = true
 	p.startTime = time.Now()
+	p.lastFPSTime = time.Now()
 
 	if p.audioPlayer != nil {
 		go p.audioPlayer.Play()
@@ -357,7 +362,15 @@ func (p *Player) playbackLoop() {
 
 			p.drawFrame(frame)
 			p.currentFrame++
+			p.frameCountSinceLastCheck++
 		}
+
+		if time.Since(p.lastFPSTime) >= time.Second {
+			p.actualFPS = float64(p.frameCountSinceLastCheck) / time.Since(p.lastFPSTime).Seconds()
+			p.lastFPSTime = time.Now()
+			p.frameCountSinceLastCheck = 0
+		}
+
 		p.drawStatus(getCurrentFrame, getTotalFrames)
 		p.screen.Show()
 	}
@@ -417,8 +430,9 @@ func (p *Player) drawStatus(getCurrentFrame func() int, getTotalFrames func() in
 	currentTime := time.Duration(float64(currentFrame)/p.GetFPS()) * time.Second
 	totalTime := time.Duration(float64(totalFrames)/p.GetFPS()) * time.Second
 
-	statusText := fmt.Sprintf("Mode: %s | FPS: %d | Status: %s | Frame: %d/%d | Time: %s/%s | Resolution: %s | Player: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [<-/->] Seek | [Q/ESC] Quit",
+	statusText := fmt.Sprintf("Mode: %s | FPS: %.1f/%d | Status: %s | Frame: %d/%d | Time: %s/%s | Resolution: %s | Player: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [<-/->] Seek | [Q/ESC] Quit",
 		mode,
+		p.actualFPS,
 		p.fps,
 		status,
 		currentFrame,
