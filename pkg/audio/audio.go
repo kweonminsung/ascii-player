@@ -103,6 +103,27 @@ func (ap *AudioPlayer) Rewind() error {
 	return ap.streamer.Seek(0)
 }
 
+// Seek seeks the audio by the given duration.
+func (ap *AudioPlayer) Seek(duration time.Duration) error {
+	speaker.Lock()
+	defer speaker.Unlock()
+
+	currentPosition := ap.streamer.Position()
+	currentDuration := ap.format.SampleRate.D(currentPosition)
+	newDuration := currentDuration + duration
+
+	if newDuration < 0 {
+		newDuration = 0
+	}
+
+	newPosition := ap.format.SampleRate.N(newDuration)
+	if newPosition >= ap.streamer.Len() {
+		newPosition = ap.streamer.Len() - 1
+	}
+
+	return ap.streamer.Seek(newPosition)
+}
+
 // Close closes the audio player and cleans up resources
 func (ap *AudioPlayer) Close() {
 	if ap.closer != nil {

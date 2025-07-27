@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -33,6 +34,7 @@ func getPlayerModeTitle(mode string) string {
 // Player represents the TUI player
 type Player struct {
 	screen       tcell.Screen
+	mutex        sync.Mutex
 	fps          int
 	loop         bool
 	color        bool
@@ -225,8 +227,35 @@ func (p *Player) handleEvents() {
 					if p.audioPlayer != nil {
 						p.audioPlayer.Rewind()
 					}
+				} else if ev.Key() == tcell.KeyRight {
+					p.seek(5 * time.Second)
+				} else if ev.Key() == tcell.KeyLeft {
+					p.seek(-5 * time.Second)
 				}
 			}
+		}
+	}
+}
+
+func (p *Player) seek(duration time.Duration) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	switch p.mode {
+	case "pixel":
+		if p.pixelPlayer != nil {
+			p.pixelPlayer.Seek(duration)
+		}
+	case "ascii":
+		fallthrough
+	default:
+		if p.asciiPlayer != nil {
+			p.asciiPlayer.Seek(duration)
+		}
+	}
+	if p.audioPlayer != nil {
+		if err := p.audioPlayer.Seek(duration); err != nil {
+			log.Printf("failed to seek audio: %v", err)
 		}
 	}
 }
@@ -270,7 +299,9 @@ func (p *Player) playbackLoop() {
 			return
 		}
 		if !p.isPaused {
+			p.mutex.Lock()
 			frame, err := getNextFrame()
+			p.mutex.Unlock()
 			if err != nil {
 				if p.loop {
 					// Reset by reloading frames
@@ -350,7 +381,7 @@ func (p *Player) drawStatus() {
 		mode = "Loop"
 	}
 
-	statusText := fmt.Sprintf("Mode: %s | FPS: %d | Status: %s | Resolution: %s | Player: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [Q/ESC] Quit",
+	statusText := fmt.Sprintf("Mode: %s | FPS: %d | Status: %s | Resolution: %s | Player: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [<-/->] Seek | [Q/ESC] Quit",
 		mode,
 		p.fps,
 		status,

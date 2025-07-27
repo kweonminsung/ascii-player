@@ -108,6 +108,12 @@ func (c *FrameExtractor) GetHeight() int {
 	return c.height
 }
 
+// GetPosition returns the current position of the video.
+func (c *FrameExtractor) GetPosition() time.Duration {
+	ms := c.vc.Get(gocv.VideoCapturePosMsec)
+	return time.Duration(ms) * time.Millisecond
+}
+
 // Close는 사용된 모든 리소스를 해제합니다.
 func (c *FrameExtractor) Close() {
 	if c.vc != nil {

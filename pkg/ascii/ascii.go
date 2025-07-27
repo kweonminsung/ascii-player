@@ -152,3 +152,13 @@ func (p *AsciiPlayer) GetNextFrame() (string, error) {
 
 	return asciiArt, nil
 }
+
+// Seek seeks the video by the given duration.
+func (p *AsciiPlayer) Seek(duration time.Duration) {
+	currentPos := p.extractor.GetPosition()
+	newPos := currentPos + duration
+	if newPos < 0 {
+		newPos = 0
+	}
+	p.extractor.Seek(newPos)
+}
