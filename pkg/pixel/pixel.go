@@ -151,3 +151,23 @@ func (p *PixelPlayer) GetNextFrame() (string, error) {
 
 	return pixelArt, nil
 }
+
+// Seek seeks the video by the given duration.
+func (p *PixelPlayer) Seek(duration time.Duration) {
+	currentPos := p.extractor.GetPosition()
+	newPos := currentPos + duration
+	if newPos < 0 {
+		newPos = 0
+	}
+	p.extractor.Seek(newPos)
+}
+
+// GetCurrentFrame returns the current frame number of the video.
+func (p *PixelPlayer) GetCurrentFrame() int {
+	return p.extractor.GetCurrentFrame()
+}
+
+// GetTotalFrames returns the total number of frames in the video.
+func (p *PixelPlayer) GetTotalFrames() int {
+	return p.extractor.GetTotalFrames()
+}

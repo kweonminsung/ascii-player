@@ -41,7 +41,6 @@ func Execute() {
 func init() {
 	// Add all subcommands to root
 	rootCmd.AddCommand(playCmd)
-	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(youtubeCmd)
 
 	// Global flags
