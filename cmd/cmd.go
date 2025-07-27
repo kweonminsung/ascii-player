@@ -8,9 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "ascii-player",
+	Use:   "console-cinema",
 	Short: "A real-time ASCII/Pixel art video player for the command line",
-	Long: `ASCII Player - Convert and play videos as ASCII/Pixel art in real-time
+	Long: `Console Cinema - Convert and play videos as ASCII/Pixel art in real-time
 
 Commands:
   play     Play local video files (MP4, AVI, etc.)
@@ -18,16 +18,16 @@ Commands:
   config   Manage configuration settings
 
 Examples:
-  ascii-player play video.mp4 --mode ascii --fps 30
-  ascii-player youtube https://youtube.com/watch?v=... --mode pixel
-  ascii-player config show`,
+  console-cinema play video.mp4 --mode ascii --fps 30
+  console-cinema youtube https://youtube.com/watch?v=... --mode pixel
+  console-cinema config show`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("ASCII Player - Real-time ASCII/Pixel art video player")
-		fmt.Println("Use 'ascii-player --help' for more information.")
+		fmt.Println("Console Cinema - Real-time ASCII/Pixel art video player")
+		fmt.Println("Use 'console-cinema --help' for more information.")
 		fmt.Println("")
 		fmt.Println("Quick start:")
-		fmt.Println("  ascii-player play video.mp4")
-		fmt.Println("  ascii-player youtube <youtube_url>")
+		fmt.Println("  console-cinema play video.mp4")
+		fmt.Println("  console-cinema youtube <youtube_url>")
 	},
 }
 

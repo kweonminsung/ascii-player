@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/kweonminsung/ascii-player/pkg/tui/player"
+	"github.com/kweonminsung/console-cinema/pkg/tui/player"
 	"github.com/spf13/cobra"
 )
 
@@ -19,8 +19,8 @@ var youtubeCmd = &cobra.Command{
 			youtubeURL = args[0]
 		} else {
 			fmt.Println("Error: Please specify a YouTube URL to play")
-			fmt.Println("Usage: ascii-player youtube <youtube_url>")
-			fmt.Println("Example: ascii-player youtube https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+			fmt.Println("Usage: console-cinema youtube <youtube_url>")
+			fmt.Println("Example: console-cinema youtube https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 			return
 		}
 

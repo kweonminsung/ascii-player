@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/kweonminsung/ascii-player/pkg/ascii"
-	"github.com/kweonminsung/ascii-player/pkg/audio"
-	"github.com/kweonminsung/ascii-player/pkg/pixel"
-	"github.com/kweonminsung/ascii-player/pkg/types"
-	"github.com/kweonminsung/ascii-player/pkg/utils"
+	"github.com/kweonminsung/console-cinema/pkg/ascii"
+	"github.com/kweonminsung/console-cinema/pkg/audio"
+	"github.com/kweonminsung/console-cinema/pkg/pixel"
+	"github.com/kweonminsung/console-cinema/pkg/types"
+	"github.com/kweonminsung/console-cinema/pkg/utils"
 )
 
 // getPlayerModeTitle returns the display title for the given mode

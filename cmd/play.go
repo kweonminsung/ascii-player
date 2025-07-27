@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/kweonminsung/ascii-player/pkg/tui/player"
+	"github.com/kweonminsung/console-cinema/pkg/tui/player"
 	"github.com/spf13/cobra"
 )
 
@@ -35,15 +35,15 @@ var playCmd = &cobra.Command{
 			filename = args[0]
 		} else {
 			fmt.Println("Error: Please specify a local video file to play")
-			fmt.Println("Usage: ascii-player play <video.mp4>")
-			fmt.Println("For YouTube videos, use: ascii-player youtube <url>")
+			fmt.Println("Usage: console-cinema play <video.mp4>")
+			fmt.Println("For YouTube videos, use: console-cinema youtube <url>")
 			return
 		}
 
 		// Check if it's a YouTube URL and reject it
 		if isYouTubeURL(filename) {
 			fmt.Println("Error: YouTube URLs are not supported in 'play' command")
-			fmt.Println("For YouTube videos, use: ascii-player youtube <url>")
+			fmt.Println("For YouTube videos, use: console-cinema youtube <url>")
 			return
 		}
 
