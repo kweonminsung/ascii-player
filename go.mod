@@ -7,6 +7,8 @@ toolchain go1.24.5
 require (
 	github.com/faiface/beep v1.1.0
 	github.com/gdamore/tcell/v2 v2.8.1
+	github.com/gocolly/colly/v2 v2.2.0
+	github.com/rivo/tview v0.0.0-20250625164341-a4a78f1e05cb
 	github.com/spf13/cobra v1.9.1
 	gocv.io/x/gocv v0.41.0
 )
@@ -22,7 +24,6 @@ require (
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/gocolly/colly/v2 v2.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
@@ -33,7 +34,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/nlnwa/whatwg-url v0.6.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/rivo/tview v0.0.0-20250625164341-a4a78f1e05cb // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/spf13/pflag v1.0.7 // indirect

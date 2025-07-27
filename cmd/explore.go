@@ -9,7 +9,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/gocolly/colly/v2"
-	"github.com/kweonminsung/ascii-player/pkg/tui/player"
+	"github.com/kweonminsung/console-cinema/pkg/tui/player"
 	"github.com/rivo/tview"
 	"github.com/spf13/cobra"
 )
