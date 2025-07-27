@@ -294,11 +294,10 @@ func (p *Player) playbackLoop() {
 			}
 
 			p.drawFrame(frame)
-			p.drawStatus()
-			p.screen.Show()
-
 			p.currentFrame++
 		}
+		p.drawStatus()
+		p.screen.Show()
 	}
 }
 
