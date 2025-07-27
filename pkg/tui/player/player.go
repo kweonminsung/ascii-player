@@ -12,6 +12,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/kweonminsung/ascii-player/pkg/ascii"
+	"github.com/kweonminsung/ascii-player/pkg/audio"
 	"github.com/kweonminsung/ascii-player/pkg/pixel"
 	"github.com/kweonminsung/ascii-player/pkg/types"
 	"github.com/kweonminsung/ascii-player/pkg/utils"
@@ -50,6 +51,7 @@ type Player struct {
 	// Player instances for different modes
 	asciiPlayer *ascii.AsciiPlayer
 	pixelPlayer *pixel.PixelPlayer
+	audioPlayer *audio.AudioPlayer
 }
 
 // NewPlayer creates a new TUI player
@@ -73,6 +75,12 @@ func (p *Player) LoadFrames() error {
 	p.width, p.height = width, height-1 // Subtract 1 for status bar
 
 	isYouTube := utils.IsValidYouTubeURL(p.filename)
+
+	audioPlayer, err := audio.NewAudioPlayer(p.filename, isYouTube)
+	if err != nil {
+		log.Printf("failed to create audio player: %v. playing without audio", err)
+	}
+	p.audioPlayer = audioPlayer
 
 	switch p.mode {
 	case "pixel":
@@ -127,6 +135,9 @@ func (p *Player) Play() error {
 		return fmt.Errorf("failed to initialize screen: %v", err)
 	}
 	defer p.screen.Fini()
+	if p.audioPlayer != nil {
+		defer p.audioPlayer.Close()
+	}
 
 	if err := p.LoadFrames(); err != nil {
 		return fmt.Errorf("failed to load frames: %v", err)
@@ -150,6 +161,9 @@ func (p *Player) handleInterrupt() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
 	p.isPlaying = false
+	if p.audioPlayer != nil {
+		p.audioPlayer.Close()
+	}
 	p.screen.Fini()
 	os.Exit(0)
 }
@@ -185,10 +199,20 @@ func (p *Player) handleEvents() {
 					os.Exit(0)
 				} else if ev.Rune() == ' ' {
 					p.isPaused = !p.isPaused
+					if p.audioPlayer != nil {
+						if p.isPaused {
+							p.audioPlayer.Pause()
+						} else {
+							p.audioPlayer.Resume()
+						}
+					}
 				} else if ev.Rune() == 'r' || ev.Rune() == 'R' {
 					p.startTime = time.Now()
 					p.currentFrame = 0
 					p.isPaused = false
+					if p.audioPlayer != nil {
+						p.audioPlayer.Rewind()
+					}
 				}
 			}
 		}
@@ -222,6 +246,10 @@ func (p *Player) playbackLoop() {
 	p.isPlaying = true
 	p.startTime = time.Now()
 
+	if p.audioPlayer != nil {
+		go p.audioPlayer.Play()
+	}
+
 	for range ticker.C {
 		if !p.isPlaying {
 			if p.isFinished {
@@ -241,6 +269,9 @@ func (p *Player) playbackLoop() {
 					}
 					p.startTime = time.Now()
 					p.currentFrame = 0
+					if p.audioPlayer != nil {
+						p.audioPlayer.Rewind()
+					}
 					continue
 				} else {
 					p.isPlaying = false
