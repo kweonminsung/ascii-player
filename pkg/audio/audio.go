@@ -70,7 +70,16 @@ func extractAudio(videoPath, audioPath string) error {
 }
 
 func extractAudioFromYouTube(videoURL, audioPath string) error {
-	cmd := exec.Command("yt-dlp", "-x", "--audio-format", "mp3", "-o", audioPath, videoURL)
+	cmd := exec.Command(
+		"yt-dlp",
+		"--no-playlist",
+		"--quiet",
+		"--progress",
+		"-x",
+		"--audio-format", "mp3",
+		"-o", audioPath,
+		videoURL,
+	)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("yt-dlp command failed: %v\nOutput: %s", err, string(output))
