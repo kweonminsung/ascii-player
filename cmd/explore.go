@@ -58,7 +58,10 @@ func explore(cmd *cobra.Command, args []string) {
 
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if videoList.HasFocus() {
-			// Let the list handle the Enter key
+			if event.Key() == tcell.KeyUp && videoList.GetCurrentItem() == 0 {
+				app.SetFocus(inputField)
+				return nil
+			}
 			return event
 		}
 		switch event.Key() {
@@ -153,31 +156,35 @@ func searchYoutube(query string) []Video {
 			}
 
 			contents, ok := data["contents"].(map[string]interface{})
-			if !ok {
+			if !ok || contents == nil {
 				return
 			}
 			twoCol, ok := contents["twoColumnSearchResultsRenderer"].(map[string]interface{})
-			if !ok {
+			if !ok || twoCol == nil {
 				return
 			}
 			primary, ok := twoCol["primaryContents"].(map[string]interface{})
-			if !ok {
+			if !ok || primary == nil {
 				return
 			}
 			sectionList, ok := primary["sectionListRenderer"].(map[string]interface{})
-			if !ok {
+			if !ok || sectionList == nil {
 				return
 			}
 			sectionContents, ok := sectionList["contents"].([]interface{})
 			if !ok || len(sectionContents) == 0 {
 				return
 			}
-			itemSection, ok := sectionContents[0].(map[string]interface{})
-			if !ok {
+			itemSectionInterface := sectionContents[0]
+			if itemSectionInterface == nil {
+				return
+			}
+			itemSection, ok := itemSectionInterface.(map[string]interface{})
+			if !ok || itemSection == nil {
 				return
 			}
 			itemSectionRenderer, ok := itemSection["itemSectionRenderer"].(map[string]interface{})
-			if !ok {
+			if !ok || itemSectionRenderer == nil {
 				return
 			}
 			videoItems, ok := itemSectionRenderer["contents"].([]interface{})
@@ -186,8 +193,15 @@ func searchYoutube(query string) []Video {
 			}
 
 			for _, item := range videoItems {
-				videoRenderer, ok := item.(map[string]interface{})["videoRenderer"].(map[string]interface{})
-				if !ok {
+				if item == nil {
+					continue
+				}
+				itemMap, ok := item.(map[string]interface{})
+				if !ok || itemMap == nil {
+					continue
+				}
+				videoRenderer, ok := itemMap["videoRenderer"].(map[string]interface{})
+				if !ok || videoRenderer == nil {
 					continue
 				}
 
@@ -195,25 +209,45 @@ func searchYoutube(query string) []Video {
 				if !ok {
 					continue
 				}
-				titleRuns, ok := videoRenderer["title"].(map[string]interface{})["runs"].([]interface{})
+				titleMap, ok := videoRenderer["title"].(map[string]interface{})
+				if !ok || titleMap == nil {
+					continue
+				}
+				titleRuns, ok := titleMap["runs"].([]interface{})
 				if !ok || len(titleRuns) == 0 {
 					continue
 				}
-				title, ok := titleRuns[0].(map[string]interface{})["text"].(string)
+				titleRun, ok := titleRuns[0].(map[string]interface{})
+				if !ok || titleRun == nil {
+					continue
+				}
+				title, ok := titleRun["text"].(string)
 				if !ok {
 					continue
 				}
-				ownerTextRuns, ok := videoRenderer["ownerText"].(map[string]interface{})["runs"].([]interface{})
+
+				ownerTextMap, ok := videoRenderer["ownerText"].(map[string]interface{})
+				if !ok || ownerTextMap == nil {
+					continue
+				}
+				ownerTextRuns, ok := ownerTextMap["runs"].([]interface{})
 				if !ok || len(ownerTextRuns) == 0 {
 					continue
 				}
-				uploader, ok := ownerTextRuns[0].(map[string]interface{})["text"].(string)
+				ownerTextRun, ok := ownerTextRuns[0].(map[string]interface{})
+				if !ok || ownerTextRun == nil {
+					continue
+				}
+				uploader, ok := ownerTextRun["text"].(string)
 				if !ok {
 					continue
 				}
-				publishedTime, ok := videoRenderer["publishedTimeText"].(map[string]interface{})["simpleText"].(string)
-				if !ok {
-					publishedTime = "N/A"
+
+				publishedTime := "N/A"
+				if publishedTimeText, ok := videoRenderer["publishedTimeText"].(map[string]interface{}); ok && publishedTimeText != nil {
+					if simpleText, ok := publishedTimeText["simpleText"].(string); ok {
+						publishedTime = simpleText
+					}
 				}
 
 				video := Video{
