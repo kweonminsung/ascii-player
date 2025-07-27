@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/kweonminsung/console-cinema/pkg/tui/player"
 	"github.com/spf13/cobra"
@@ -33,6 +34,12 @@ var youtubePlayCmd = &cobra.Command{
 			fmt.Println("  - https://youtu.be/VIDEO_ID")
 			fmt.Println("  - https://www.youtube.com/embed/VIDEO_ID")
 			return
+		}
+
+		// Convert shorts URL to a standard watch URL
+		if strings.Contains(youtubeURL, "/shorts/") {
+			videoID := strings.Split(youtubeURL, "/shorts/")[1]
+			youtubeURL = fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
 		}
 
 		// Note: Flags are inherited from the parent youtubeCmd
