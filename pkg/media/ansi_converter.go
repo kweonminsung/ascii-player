@@ -26,6 +26,7 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 	if originalWidth == 0 {
 		return "", fmt.Errorf("invalid image width: 0")
 	}
+
 	aspectRatio := originalHeight / originalWidth
 	newHeight := int(float64(width) * aspectRatio * types.YScaleFactor)
 	if newHeight <= 0 {
@@ -39,68 +40,89 @@ func (c *AnsiConverter) Convert(img gocv.Mat, width, height int, color bool) (st
 	defer resized.Close()
 	gocv.Resize(img, &resized, image.Pt(width, newHeight), 0, 0, gocv.InterpolationLinear)
 
-	lines := make([]string, newHeight)
+	var buffer = make([][]byte, newHeight)
 	var wg sync.WaitGroup
 	numWorkers := runtime.NumCPU()
 
-	if color {
-		rowJobs := make(chan int, newHeight)
-		for y := 0; y < newHeight; y++ {
-			rowJobs <- y
-		}
-		close(rowJobs)
+	rowJobs := make(chan int, newHeight)
+	for y := 0; y < newHeight; y++ {
+		rowJobs <- y
+	}
+	close(rowJobs)
 
-		wg.Add(newHeight)
+	if color {
+		data := resized.ToBytes()
+		lineSize := width * 3
+
+		wg.Add(numWorkers)
 		for i := 0; i < numWorkers; i++ {
 			go func() {
+				defer wg.Done()
 				for y := range rowJobs {
-					var line bytes.Buffer
+					offset := y * lineSize
+					var line []byte
+					prevColor := ""
+
 					for x := 0; x < width; x++ {
-						vec := resized.GetVecbAt(y, x) // BGR
-						b, g, r := vec[0], vec[1], vec[2]
-						ch := '█'
-						line.WriteString(fmt.Sprintf("[#%02x%02x%02x]%c", r, g, b, ch))
+						b := data[offset+3*x]
+						g := data[offset+3*x+1]
+						r := data[offset+3*x+2]
+
+						colorTag := fmt.Sprintf("%02x%02x%02x", r, g, b)
+						if colorTag != prevColor {
+							line = append(line, '[')
+							line = append(line, '#')
+							line = append(line, colorTag...)
+							line = append(line, ']')
+							prevColor = colorTag
+						}
+
+						line = append(line, []byte("█")...)
 					}
-					lines[y] = line.String()
-					wg.Done()
+					buffer[y] = append(line, '\n')
 				}
 			}()
 		}
-		wg.Wait()
 	} else {
 		gray := gocv.NewMat()
 		defer gray.Close()
 		gocv.CvtColor(resized, &gray, gocv.ColorBGRToGray)
+		data := gray.ToBytes()
 
-		rowJobs := make(chan int, newHeight)
-		for y := 0; y < newHeight; y++ {
-			rowJobs <- y
-		}
-		close(rowJobs)
-
-		wg.Add(newHeight)
+		wg.Add(numWorkers)
 		for i := 0; i < numWorkers; i++ {
 			go func() {
+				defer wg.Done()
 				for y := range rowJobs {
-					var line bytes.Buffer
+					offset := y * width
+					var line []byte
+					prevGray := -1
+
 					for x := 0; x < width; x++ {
-						val := gray.GetUCharAt(y, x)
-						ch := '█'
-						line.WriteString(fmt.Sprintf("[#%02x%02x%02x]%c", val, val, val, ch))
+						val := int(data[offset+x])
+
+						if val != prevGray {
+							line = append(line, '[')
+							line = append(line, '#')
+							hex := fmt.Sprintf("%02x%02x%02x", val, val, val)
+							line = append(line, hex...)
+							line = append(line, ']')
+							prevGray = val
+						}
+
+						line = append(line, []byte("█")...)
 					}
-					lines[y] = line.String()
-					wg.Done()
+					buffer[y] = append(line, '\n')
 				}
 			}()
 		}
-		wg.Wait()
 	}
 
-	var buffer bytes.Buffer
-	for _, line := range lines {
-		buffer.WriteString(line)
-		buffer.WriteString("\n")
-	}
+	wg.Wait()
 
-	return buffer.String(), nil
+	var final bytes.Buffer
+	for _, line := range buffer {
+		final.Write(line)
+	}
+	return final.String(), nil
 }
