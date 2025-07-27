@@ -9,21 +9,21 @@ import (
 )
 
 var youtubeCmd = &cobra.Command{
-	Use:   "youtube [url]",
-	Short: "Play ASCII/Pixel animations from a YouTube video",
-	Long:  `Play ASCII/Pixel animations from a specified YouTube video URL. The video will be streamed and converted to ASCII art or pixel art in real-time and displayed in the terminal. Supports options for mode, FPS, looping, and resolution.`,
+	Use:   "youtube",
+	Short: "Play or explore YouTube videos",
+	Long:  `A container for YouTube related commands like play and explore.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 {
-			cmd.Help()
-			return
-		}
+		cmd.Help()
+	},
+}
 
+var youtubePlayCmd = &cobra.Command{
+	Use:   "play [url]",
+	Short: "Play a YouTube video from a URL",
+	Long:  `Play ASCII/Pixel animations from a specified YouTube video URL.`,
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
 		youtubeURL := args[0]
-		// The 'explore' command is a subcommand, so if the arg is 'explore',
-		// cobra will handle it. We just need to avoid treating 'explore' as a URL.
-		if youtubeURL == "explore" {
-			return
-		}
 
 		// Check if it's a valid YouTube URL
 		if !isValidYouTubeURL(youtubeURL) {
@@ -35,6 +35,7 @@ var youtubeCmd = &cobra.Command{
 			return
 		}
 
+		// Note: Flags are inherited from the parent youtubeCmd
 		fps, _ := cmd.Flags().GetInt("fps")
 		loop, _ := cmd.Flags().GetBool("loop")
 		color, _ := cmd.Flags().GetBool("color")
@@ -51,7 +52,6 @@ var youtubeCmd = &cobra.Command{
 			fmt.Printf("Error during playback: %v\n", err)
 			return
 		}
-
 	},
 }
 
@@ -74,8 +74,11 @@ func isValidYouTubeURL(url string) bool {
 
 func init() {
 	rootCmd.AddCommand(youtubeCmd)
-	youtubeCmd.Flags().BoolP("color", "c", true, "Enable colored output")
-	youtubeCmd.Flags().IntP("fps", "f", 30, "Frames per second for playback")
-	youtubeCmd.Flags().BoolP("loop", "l", false, "Loop the animation")
-	youtubeCmd.Flags().StringP("mode", "m", "pixel", "Player mode (ascii, pixel)")
+	youtubeCmd.AddCommand(youtubePlayCmd)
+
+	// Flags for both play and explore (via playVideo)
+	youtubeCmd.PersistentFlags().BoolP("color", "c", true, "Enable colored output")
+	youtubeCmd.PersistentFlags().IntP("fps", "f", 30, "Frames per second for playback")
+	youtubeCmd.PersistentFlags().BoolP("loop", "l", false, "Loop the animation")
+	youtubeCmd.PersistentFlags().StringP("mode", "m", "pixel", "Player mode (ascii, pixel)")
 }

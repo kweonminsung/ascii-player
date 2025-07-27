@@ -157,22 +157,27 @@ func searchYoutube(query string) []Video {
 
 			contents, ok := data["contents"].(map[string]interface{})
 			if !ok || contents == nil {
+				log.Println("contents not found in ytInitialData")
 				return
 			}
 			twoCol, ok := contents["twoColumnSearchResultsRenderer"].(map[string]interface{})
 			if !ok || twoCol == nil {
+				log.Println("twoColumnSearchResultsRenderer not found")
 				return
 			}
 			primary, ok := twoCol["primaryContents"].(map[string]interface{})
 			if !ok || primary == nil {
+				log.Println("primaryContents not found")
 				return
 			}
 			sectionList, ok := primary["sectionListRenderer"].(map[string]interface{})
 			if !ok || sectionList == nil {
+				log.Println("sectionListRenderer not found")
 				return
 			}
 			sectionContents, ok := sectionList["contents"].([]interface{})
 			if !ok || len(sectionContents) == 0 {
+				log.Println("contents array not found or empty in sectionListRenderer")
 				return
 			}
 			itemSectionInterface := sectionContents[0]
@@ -181,14 +186,17 @@ func searchYoutube(query string) []Video {
 			}
 			itemSection, ok := itemSectionInterface.(map[string]interface{})
 			if !ok || itemSection == nil {
+				log.Println("itemSection not found in contents")
 				return
 			}
 			itemSectionRenderer, ok := itemSection["itemSectionRenderer"].(map[string]interface{})
 			if !ok || itemSectionRenderer == nil {
+				log.Println("itemSectionRenderer not found")
 				return
 			}
 			videoItems, ok := itemSectionRenderer["contents"].([]interface{})
 			if !ok {
+				log.Println("contents not found in itemSectionRenderer")
 				return
 			}
 
@@ -203,6 +211,10 @@ func searchYoutube(query string) []Video {
 				videoRenderer, ok := itemMap["videoRenderer"].(map[string]interface{})
 				if !ok || videoRenderer == nil {
 					continue
+				}
+				videoRenderer, ok := itemMap["videoRenderer"].(map[string]interface{})
+				if !ok {
+					continue // Not a video item, could be a playlist or ad
 				}
 
 				videoId, ok := videoRenderer["videoId"].(string)
