@@ -126,3 +126,23 @@ func (p *AsciiPlayer) GetVideoWidth() int {
 func (p *AsciiPlayer) GetVideoHeight() int {
 	return p.extractor.GetHeight()
 }
+
+// GetNextFrame reads the next frame and converts it to ASCII art.
+func (p *AsciiPlayer) GetNextFrame() (string, error) {
+	frame, err := p.extractor.ReadNextFrame()
+	if err != nil {
+		return "", fmt.Errorf("could not read next frame: %v", err)
+	}
+	defer frame.Close()
+
+	if frame.Empty() {
+		return "", fmt.Errorf("got empty frame")
+	}
+
+	asciiArt, err := p.converter.Convert(frame, p.config.Width, p.config.Height, p.config.Color)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert frame to ASCII: %v", err)
+	}
+
+	return asciiArt, nil
+}

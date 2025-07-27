@@ -196,15 +196,15 @@ func (p *Player) handleEvents() {
 }
 
 func (p *Player) playbackLoop() {
-	var getFrame func(time.Duration) (string, error)
+	var getNextFrame func() (string, error)
 	var getFPS func() float64
 
 	switch p.mode {
 	case "pixel":
-		getFrame = p.pixelPlayer.GetFrameAt
+		getNextFrame = p.pixelPlayer.GetNextFrame
 		getFPS = p.pixelPlayer.GetFPS
 	default:
-		getFrame = p.asciiPlayer.GetFrameAt
+		getNextFrame = p.asciiPlayer.GetNextFrame
 		getFPS = p.asciiPlayer.GetFPS
 	}
 
@@ -230,10 +230,15 @@ func (p *Player) playbackLoop() {
 			return
 		}
 		if !p.isPaused {
-			elapsed := time.Since(p.startTime)
-			frame, err := getFrame(elapsed)
+			frame, err := getNextFrame()
 			if err != nil {
 				if p.loop {
+					// Reset by reloading frames
+					if loadErr := p.LoadFrames(); loadErr != nil {
+						log.Printf("failed to reload frames for looping: %v", loadErr)
+						p.isPlaying = false
+						return
+					}
 					p.startTime = time.Now()
 					p.currentFrame = 0
 					continue
