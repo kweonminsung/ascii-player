@@ -103,7 +103,7 @@ func (p *Player) GetFPS() float64 {
 // LoadFrames loads frames for playback
 func (p *Player) LoadFrames() error {
 	width, height := p.screen.Size()
-	p.width, p.height = width, height-1 // Subtract 1 for status bar
+	p.width, p.height = width, height-2 // Subtract 2 for status bar
 
 	isYouTube := utils.IsValidYouTubeURL(p.filename)
 
@@ -206,7 +206,7 @@ func (p *Player) handleEvents() {
 		case *tcell.EventResize:
 			p.screen.Sync()
 			width, height := p.screen.Size()
-			p.width, p.height = width, height-1 // Subtract 1 for status bar
+			p.width, p.height = width, height-2 // Subtract 2 for status bar
 
 			switch p.mode {
 			case "pixel":
@@ -425,10 +425,11 @@ func (p *Player) drawString(x, y int, str string) {
 
 func (p *Player) drawStatus(getCurrentFrame func() int, getTotalFrames func() int) {
 	_, screenHeight := p.screen.Size()
-	statusY := p.height
-	if statusY >= screenHeight {
-		statusY = screenHeight - 1
+	statusY1 := p.height
+	if statusY1 >= screenHeight-1 {
+		statusY1 = screenHeight - 2
 	}
+	statusY2 := statusY1 + 1
 
 	status := "PLAYING"
 	if p.isPaused {
@@ -448,7 +449,7 @@ func (p *Player) drawStatus(getCurrentFrame func() int, getTotalFrames func() in
 	currentTime := time.Duration(float64(currentFrame)/p.GetFPS()) * time.Second
 	totalTime := time.Duration(float64(totalFrames)/p.GetFPS()) * time.Second
 
-	statusText := fmt.Sprintf("Mode: %s | FPS: %.1f/%d | Status: %s | Frame: %d/%d | Time: %s/%s | Resolution: %s | Player: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [<-/->] Seek | [Q/ESC] Quit",
+	statusText1 := fmt.Sprintf("Mode: %s | FPS: %.1f/%d | Status: %s | Frame: %d/%d | Time: %s/%s | Resolution: %s | Player: %s",
 		mode,
 		p.actualFPS,
 		p.fps,
@@ -460,16 +461,26 @@ func (p *Player) drawStatus(getCurrentFrame func() int, getTotalFrames func() in
 		strconv.Itoa(p.width)+"x"+strconv.Itoa(p.height),
 		getPlayerModeTitle(p.mode))
 
-	// Clear status line
+	statusText2 := "Controls: [SPACE] Pause/Resume | [R] Restart | [<-/->] Seek | [Q/ESC] Quit"
+
+	// Clear status lines
 	width, _ := p.screen.Size()
+	style := tcell.StyleDefault.Background(tcell.ColorSilver).Foreground(tcell.ColorBlack)
 	for i := 0; i < width; i++ {
-		p.screen.SetContent(i, statusY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorSilver).Foreground(tcell.ColorBlack))
+		p.screen.SetContent(i, statusY1, ' ', nil, style)
+		p.screen.SetContent(i, statusY2, ' ', nil, style)
 	}
 
-	// Draw status text
-	runes := []rune(statusText)
-	for i := 0; i < len(runes) && i < width; i++ {
-		p.screen.SetContent(i, statusY, runes[i], nil, tcell.StyleDefault.Background(tcell.ColorSilver).Foreground(tcell.ColorBlack))
+	// Draw status text line 1
+	runes1 := []rune(statusText1)
+	for i := 0; i < len(runes1) && i < width; i++ {
+		p.screen.SetContent(i, statusY1, runes1[i], nil, style)
+	}
+
+	// Draw status text line 2
+	runes2 := []rune(statusText2)
+	for i := 0; i < len(runes2) && i < width; i++ {
+		p.screen.SetContent(i, statusY2, runes2[i], nil, style)
 	}
 }
 
