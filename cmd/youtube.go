@@ -73,8 +73,8 @@ func isValidYouTubeURL(url string) bool {
 
 func init() {
 	rootCmd.AddCommand(youtubeCmd)
-	youtubeCmd.Flags().BoolP("color", "c", false, "Enable colored output")
+	youtubeCmd.Flags().BoolP("color", "c", true, "Enable colored output")
 	youtubeCmd.Flags().IntP("fps", "f", 30, "Frames per second for playback")
 	youtubeCmd.Flags().BoolP("loop", "l", false, "Loop the animation")
-	youtubeCmd.Flags().StringP("mode", "m", "ascii", "Player mode (ascii, pixel)")
+	youtubeCmd.Flags().StringP("mode", "m", "pixel", "Player mode (ascii, pixel)")
 }
