@@ -161,3 +161,13 @@ func (p *PixelPlayer) Seek(duration time.Duration) {
 	}
 	p.extractor.Seek(newPos)
 }
+
+// GetCurrentFrame returns the current frame number of the video.
+func (p *PixelPlayer) GetCurrentFrame() int {
+	return p.extractor.GetCurrentFrame()
+}
+
+// GetTotalFrames returns the total number of frames in the video.
+func (p *PixelPlayer) GetTotalFrames() int {
+	return p.extractor.GetTotalFrames()
+}

@@ -114,6 +114,16 @@ func (c *FrameExtractor) GetPosition() time.Duration {
 	return time.Duration(ms) * time.Millisecond
 }
 
+// GetCurrentFrame returns the current frame number of the video.
+func (c *FrameExtractor) GetCurrentFrame() int {
+	return int(c.vc.Get(gocv.VideoCapturePosFrames))
+}
+
+// GetTotalFrames returns the total number of frames in the video.
+func (c *FrameExtractor) GetTotalFrames() int {
+	return int(c.vc.Get(gocv.VideoCaptureFrameCount))
+}
+
 // Close는 사용된 모든 리소스를 해제합니다.
 func (c *FrameExtractor) Close() {
 	if c.vc != nil {

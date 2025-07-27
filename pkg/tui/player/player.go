@@ -71,6 +71,31 @@ func NewPlayer(filename string, fps int, loop bool, color bool, mode string) *Pl
 	}
 }
 
+// GetFPS returns the FPS of the video.
+func (p *Player) GetFPS() float64 {
+	var fps float64
+	switch p.mode {
+	case "pixel":
+		if p.pixelPlayer != nil {
+			fps = p.pixelPlayer.GetFPS()
+		}
+	case "ascii":
+		fallthrough
+	default:
+		if p.asciiPlayer != nil {
+			fps = p.asciiPlayer.GetFPS()
+		}
+	}
+
+	if fps > 0 {
+		return fps
+	}
+	if p.fps > 0 {
+		return float64(p.fps)
+	}
+	return 30 // Default FPS
+}
+
 // LoadFrames loads frames for playback
 func (p *Player) LoadFrames() error {
 	width, height := p.screen.Size()
@@ -263,14 +288,20 @@ func (p *Player) seek(duration time.Duration) {
 func (p *Player) playbackLoop() {
 	var getNextFrame func() (string, error)
 	var getFPS func() float64
+	var getCurrentFrame func() int
+	var getTotalFrames func() int
 
 	switch p.mode {
 	case "pixel":
 		getNextFrame = p.pixelPlayer.GetNextFrame
 		getFPS = p.pixelPlayer.GetFPS
+		getCurrentFrame = p.pixelPlayer.GetCurrentFrame
+		getTotalFrames = p.pixelPlayer.GetTotalFrames
 	default:
 		getNextFrame = p.asciiPlayer.GetNextFrame
 		getFPS = p.asciiPlayer.GetFPS
+		getCurrentFrame = p.asciiPlayer.GetCurrentFrame
+		getTotalFrames = p.asciiPlayer.GetTotalFrames
 	}
 
 	fps := p.fps
@@ -327,7 +358,7 @@ func (p *Player) playbackLoop() {
 			p.drawFrame(frame)
 			p.currentFrame++
 		}
-		p.drawStatus()
+		p.drawStatus(getCurrentFrame, getTotalFrames)
 		p.screen.Show()
 	}
 }
@@ -361,7 +392,7 @@ func (p *Player) drawString(x, y int, str string) {
 	}
 }
 
-func (p *Player) drawStatus() {
+func (p *Player) drawStatus(getCurrentFrame func() int, getTotalFrames func() int) {
 	_, screenHeight := p.screen.Size()
 	statusY := p.height
 	if statusY >= screenHeight {
@@ -381,10 +412,19 @@ func (p *Player) drawStatus() {
 		mode = "Loop"
 	}
 
-	statusText := fmt.Sprintf("Mode: %s | FPS: %d | Status: %s | Resolution: %s | Player: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [<-/->] Seek | [Q/ESC] Quit",
+	currentFrame := getCurrentFrame()
+	totalFrames := getTotalFrames()
+	currentTime := time.Duration(float64(currentFrame)/p.GetFPS()) * time.Second
+	totalTime := time.Duration(float64(totalFrames)/p.GetFPS()) * time.Second
+
+	statusText := fmt.Sprintf("Mode: %s | FPS: %d | Status: %s | Frame: %d/%d | Time: %s/%s | Resolution: %s | Player: %s | Controls: [SPACE] Pause/Resume | [R] Restart | [<-/->] Seek | [Q/ESC] Quit",
 		mode,
 		p.fps,
 		status,
+		currentFrame,
+		totalFrames,
+		utils.FormatDuration(currentTime),
+		utils.FormatDuration(totalTime),
 		strconv.Itoa(p.width)+"x"+strconv.Itoa(p.height),
 		getPlayerModeTitle(p.mode))
 
