@@ -5,7 +5,7 @@ import (
 	"image"
 	"math"
 
-	"github.com/kweonminsung/ascii-player/pkg/types"
+	"github.com/kweonminsung/console-cinema/pkg/types"
 	"gocv.io/x/gocv"
 )
 

@@ -1,4 +1,4 @@
-module github.com/kweonminsung/ascii-player
+module github.com/kweonminsung/console-cinema
 
 go 1.21
 

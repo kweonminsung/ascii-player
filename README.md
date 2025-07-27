@@ -1,4 +1,4 @@
-# ASCII Player
+# Console Cinema
 
 ASCII 아트 애니메이션을 재생하는 간단한 Go 프로그램입니다.
 
@@ -12,10 +12,10 @@ ASCII 아트 애니메이션을 재생하는 간단한 Go 프로그램입니다.
 
 ```bash
 # 프로그램 빌드
-go build -o ascii-player
+go build -o console-cinema
 
 # 애니메이션 재생
-./ascii-player examples/simple.txt
+./console-cinema examples/simple.txt
 ```
 
 ## 파일 형식

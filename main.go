@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/kweonminsung/ascii-player/cmd"
+	"github.com/kweonminsung/console-cinema/cmd"
 )
 
 func main() {

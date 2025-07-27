@@ -33,8 +33,9 @@ ehthumbs.db
 Thumbs.db
 
 # Build output
-ascii-player
-ascii-player.exe
+console-cinema
+console-cinema.exe
+
 
 tmp
 .air.toml
