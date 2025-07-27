@@ -1,58 +1,78 @@
-# Console Cinema
+# 🎬 Console Cinema
 
-ASCII 아트 애니메이션을 재생하는 간단한 Go 프로그램입니다.
+**Watch videos as real-time ASCII or Pixel art directly in your terminal!**
 
-## 기능
+Console Cinema is a powerful tool that converts and plays local video files or YouTube videos into vibrant ASCII or Pixel art right in your command-line environment.
 
-- 텍스트 파일에서 ASCII 프레임 로드
-- 설정 가능한 프레임 레이트로 애니메이션 재생
-- 간단한 명령줄 인터페이스
+## ✨ Features
 
-## 사용법
+- **Real-time Conversion**: Plays videos by converting them to ASCII or Pixel art in real-time.
+- **Local & YouTube Support**: Supports both local video files (MP4, AVI, etc.) and YouTube URLs.
+- **Multiple Art Styles**: Offers two distinct art styles: `ascii` and `pixel`.
+- **Simple to Use**: Designed with an intuitive command structure for easy operation.
 
-```bash
-# 프로그램 빌드
-go build -o console-cinema
+## 🚀 Installation
 
-# 애니메이션 재생
-./console-cinema examples/simple.txt
-```
-
-## 파일 형식
-
-애니메이션 파일은 다음과 같은 형식을 따라야 합니다:
-
-```
-프레임 1 내용
----
-프레임 2 내용
----
-프레임 3 내용
-```
-
-각 프레임은 `---` 구분자로 분리됩니다.
-
-## 프로젝트 구조
-
-```
-├── main.go              # 메인 진입점
-├── internal/            # 내부 패키지
-│   └── player.go        # 애니메이션 플레이어 로직
-├── pkg/                 # 공개 패키지
-│   └── loader.go        # 파일 로더 유틸리티
-└── examples/            # 예제 애니메이션 파일
-    └── simple.txt       # 간단한 애니메이션 예제
-```
-
-## 개발
+If you have a Go environment set up, you can easily install it with the following command:
 
 ```bash
-# 의존성 설치
-go mod tidy
-
-# 테스트 실행
-go test ./...
-
-# 프로그램 실행
-go run main.go examples/simple.txt
+go install github.com/kweonminsung/console-cinema@latest
 ```
+
+Alternatively, you can clone this repository and build it yourself.
+
+```bash
+git clone https://github.com/kweonminsung/console-cinema.git
+cd console-cinema
+go build
+```
+
+## 📖 Usage
+
+### Playing Local Videos
+
+Use the `play` command to play local video files.
+
+```bash
+# Play in the default mode (ascii)
+./console-cinema play test.mp4
+
+# Play in pixel mode
+./console-cinema play test.mp4 --mode pixel
+
+# Set frames per second (fps)
+./console-cinema play test.mp4 --fps 30
+```
+
+### Playing YouTube Videos
+
+Use the `youtube` command to play a video from a YouTube link.
+
+```bash
+# Play in the default mode (ascii)
+./console-cinema youtube "https://www.youtube.com/watch?v=your_video_id"
+
+# Play in pixel mode
+./console-cinema youtube "https://www.youtube.com/watch?v=your_video_id" --mode pixel
+```
+
+### Available Commands
+
+```
+Console Cinema - A real-time ASCII/Pixel art video player for the command line
+
+Usage:
+  console-cinema [command]
+
+Available Commands:
+  play        Play local video files (MP4, AVI, etc.)
+  youtube     Play YouTube videos by URL
+  help        Help about any command
+
+Flags:
+  -h, --help   help for console-cinema
+```
+
+## 📄 License
+
+This project is licensed under the MIT License.
