@@ -46,14 +46,14 @@ Use the `play` command to play local video files.
 
 ### Playing YouTube Videos
 
-Use the `youtube play` command to play a video from a YouTube link.
+Use the `youtube play` command to play a video from a YouTube link. Supports standard videos, shorts, and embed URLs.
 
 ```bash
 # Play in the default mode (pixel)
 ./console-cinema youtube play "https://www.youtube.com/watch?v=your_video_id"
 
-# Play in ascii mode
-./console-cinema youtube play "https://www.youtube.com/watch?v=your_video_id" --mode ascii
+# Play a Short in ascii mode
+./console-cinema youtube play "https://www.youtube.com/shorts/your_short_id" --mode ascii
 ```
 
 ### Exploring YouTube Videos

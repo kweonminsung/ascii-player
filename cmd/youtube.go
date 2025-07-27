@@ -61,6 +61,7 @@ func isValidYouTubeURL(url string) bool {
 		`^https?://(www\.)?youtube\.com/watch\?v=[\w-]+`,
 		`^https?://youtu\.be/[\w-]+`,
 		`^https?://(www\.)?youtube\.com/embed/[\w-]+`,
+		`^https?://(www\.)?youtube\.com/shorts/[\w-]+`,
 	}
 
 	for _, pattern := range patterns {

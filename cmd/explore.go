@@ -210,10 +210,6 @@ func searchYoutube(query string) []Video {
 				}
 				videoRenderer, ok := itemMap["videoRenderer"].(map[string]interface{})
 				if !ok || videoRenderer == nil {
-					continue
-				}
-				videoRenderer, ok := itemMap["videoRenderer"].(map[string]interface{})
-				if !ok {
 					continue // Not a video item, could be a playlist or ad
 				}
 
