@@ -53,6 +53,7 @@ type Player struct {
 	frameCountSinceLastCheck int
 	lastFPSTime              time.Time
 	actualFPS                float64
+	currentSpeedRatio        float64
 
 	// Player instances for different modes
 	asciiPlayer *ascii.AsciiPlayer
@@ -63,15 +64,16 @@ type Player struct {
 // NewPlayer creates a new TUI player
 func NewPlayer(filename string, fps int, loop bool, color bool, mode string) *Player {
 	return &Player{
-		fps:          fps,
-		loop:         loop,
-		color:        color,
-		filename:     filename,
-		mode:         mode,
-		isPlaying:    false,
-		isPaused:     false,
-		isFinished:   false,
-		currentFrame: 0,
+		fps:               fps,
+		loop:              loop,
+		color:             color,
+		filename:          filename,
+		mode:              mode,
+		isPlaying:         false,
+		isPaused:          false,
+		isFinished:        false,
+		currentFrame:      0,
+		currentSpeedRatio: 1.0,
 	}
 }
 
@@ -383,10 +385,23 @@ func (p *Player) playbackLoop() {
 			p.frameCountSinceLastCheck++
 		}
 
-		if time.Since(p.lastFPSTime) >= time.Second {
+		if time.Since(p.lastFPSTime) >= (time.Second / 10) { // Update 10 times per second
 			p.actualFPS = float64(p.frameCountSinceLastCheck) / time.Since(p.lastFPSTime).Seconds()
 			p.lastFPSTime = time.Now()
 			p.frameCountSinceLastCheck = 0
+
+			if p.audioPlayer != nil {
+				targetFPS := p.GetFPS()
+				if targetFPS > 0 && p.actualFPS > 0 {
+					targetRatio := p.actualFPS / targetFPS
+					// Smooth the ratio change
+					p.currentSpeedRatio = p.currentSpeedRatio*0.7 + targetRatio*0.3
+					if p.currentSpeedRatio < 0.1 {
+						p.currentSpeedRatio = 0.1
+					}
+					p.audioPlayer.SetSpeed(p.currentSpeedRatio)
+				}
+			}
 		}
 
 		p.drawStatus(getCurrentFrame, getTotalFrames)

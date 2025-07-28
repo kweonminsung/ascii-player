@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/faiface/beep"
@@ -19,6 +20,8 @@ type AudioPlayer struct {
 	format    beep.Format
 	closer    io.Closer
 	audioPath string
+	resampler *beep.Resampler
+	mutex     sync.Mutex
 }
 
 // NewAudioPlayer creates a new AudioPlayer
@@ -49,7 +52,8 @@ func NewAudioPlayer(videoPath string, isYouTube bool) (*AudioPlayer, error) {
 		return nil, fmt.Errorf("failed to decode mp3: %v", err)
 	}
 
-	ctrl := &beep.Ctrl{Streamer: streamer, Paused: false}
+	resampler := beep.Resample(4, format.SampleRate, format.SampleRate, streamer)
+	ctrl := &beep.Ctrl{Streamer: resampler, Paused: false}
 
 	return &AudioPlayer{
 		ctrl:      ctrl,
@@ -57,6 +61,7 @@ func NewAudioPlayer(videoPath string, isYouTube bool) (*AudioPlayer, error) {
 		format:    format,
 		closer:    f,
 		audioPath: audioPath,
+		resampler: resampler,
 	}, nil
 }
 
@@ -91,6 +96,17 @@ func extractAudioFromYouTube(videoURL, audioPath string) error {
 func (ap *AudioPlayer) Play() {
 	speaker.Init(ap.format.SampleRate, ap.format.SampleRate.N(time.Second/10))
 	speaker.Play(ap.ctrl)
+}
+
+// SetSpeed adjusts the playback speed of the audio.
+func (ap *AudioPlayer) SetSpeed(speed float64) {
+	ap.mutex.Lock()
+	defer ap.mutex.Unlock()
+	if ap.resampler != nil {
+		speaker.Lock()
+		ap.resampler.SetRatio(speed)
+		speaker.Unlock()
+	}
 }
 
 // Pause pauses audio playback
