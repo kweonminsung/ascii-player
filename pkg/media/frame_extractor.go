@@ -3,6 +3,7 @@ package media
 import (
 	"fmt"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -25,7 +26,13 @@ func NewFrameExtractor(source string, isYouTube bool) (*FrameExtractor, error) {
 	videoSource := source
 	if isYouTube {
 		// yt-dlp를 사용하여 가장 좋은 품질의 mp4 스트림 URL을 가져옵니다. (max 720p)
-		cmd := exec.Command("yt-dlp", "-f", "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/best", "-g", source)
+		var ytDlpPath string
+		if runtime.GOOS == "windows" {
+			ytDlpPath = "third_party/yt-dlp/yt-dlp.exe"
+		} else {
+			ytDlpPath = "third_party/yt-dlp/yt-dlp"
+		}
+		cmd := exec.Command(ytDlpPath, "-f", "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/best", "-g", source)
 		output, err := cmd.Output()
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute yt-dlp for url %s: %w. Is yt-dlp installed and in your PATH?", source, err)
