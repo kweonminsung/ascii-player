@@ -111,7 +111,7 @@ func updateVideoList(list *tview.List, videos []youtube.Video, app *tview.Applic
 	}
 	for _, video := range videos {
 		videoCopy := video // Create a copy to avoid closure issues
-		secondaryText := fmt.Sprintf("By: %s | Views: %s | Published: %s", videoCopy.Uploader, videoCopy.Views, videoCopy.PublishedAt)
+		secondaryText := fmt.Sprintf("By: %s | Views: %s | Length: %s | Published: %s", videoCopy.Uploader, videoCopy.Views, videoCopy.Length, videoCopy.PublishedAt)
 		list.AddItem(videoCopy.Title, secondaryText, 0, func() {
 			app.Stop()
 			playVideo(videoCopy.URL)
