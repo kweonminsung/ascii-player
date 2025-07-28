@@ -306,6 +306,7 @@ func (p *Player) rewind() {
 	}
 	if p.audioPlayer != nil {
 		p.audioPlayer.Rewind()
+		go p.audioPlayer.Play()
 	}
 }
 
