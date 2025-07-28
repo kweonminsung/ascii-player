@@ -22,6 +22,7 @@ type AudioPlayer struct {
 	audioPath string
 	resampler *beep.Resampler
 	mutex     sync.Mutex
+	speed     float64
 }
 
 // NewAudioPlayer creates a new AudioPlayer
@@ -62,6 +63,7 @@ func NewAudioPlayer(videoPath string, isYouTube bool) (*AudioPlayer, error) {
 		closer:    f,
 		audioPath: audioPath,
 		resampler: resampler,
+		speed:     1.0,
 	}, nil
 }
 
@@ -102,9 +104,10 @@ func (ap *AudioPlayer) Play() {
 func (ap *AudioPlayer) SetSpeed(speed float64) {
 	ap.mutex.Lock()
 	defer ap.mutex.Unlock()
+	ap.speed = speed
 	if ap.resampler != nil {
 		speaker.Lock()
-		ap.resampler.SetRatio(speed)
+		ap.resampler.SetRatio(ap.speed)
 		speaker.Unlock()
 	}
 }
@@ -125,7 +128,18 @@ func (ap *AudioPlayer) Resume() {
 
 // Rewind rewinds the audio to the beginning
 func (ap *AudioPlayer) Rewind() error {
-	return ap.streamer.Seek(0)
+	speaker.Lock()
+	defer speaker.Unlock()
+
+	if err := ap.streamer.Seek(0); err != nil {
+		return err
+	}
+
+	// Re-create the resampler to clear its internal state.
+	ap.resampler = beep.Resample(4, ap.format.SampleRate, ap.format.SampleRate, ap.streamer)
+	ap.resampler.SetRatio(ap.speed)
+	ap.ctrl.Streamer = ap.resampler
+	return nil
 }
 
 // Seek seeks the audio by the given duration.
@@ -142,11 +156,22 @@ func (ap *AudioPlayer) Seek(duration time.Duration) error {
 	}
 
 	newPosition := ap.format.SampleRate.N(newDuration)
-	if newPosition >= ap.streamer.Len() {
+	if ap.streamer.Len() > 0 && newPosition >= ap.streamer.Len() {
 		newPosition = ap.streamer.Len() - 1
+	} else if ap.streamer.Len() <= 0 {
+		newPosition = 0
 	}
 
-	return ap.streamer.Seek(newPosition)
+	if err := ap.streamer.Seek(newPosition); err != nil {
+		return err
+	}
+
+	// Re-create the resampler to clear its internal state after a seek.
+	ap.resampler = beep.Resample(4, ap.format.SampleRate, ap.format.SampleRate, ap.streamer)
+	ap.resampler.SetRatio(ap.speed)
+	ap.ctrl.Streamer = ap.resampler
+
+	return nil
 }
 
 // Close closes the audio player and cleans up resources
