@@ -29,6 +29,7 @@ func explore(cmd *cobra.Command, args []string) {
 	videoList := tview.NewList()
 	suggestionsList := tview.NewList().
 		ShowSecondaryText(false)
+	suggestionsList.SetBorderPadding(0, 1, 16, 0)
 
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
