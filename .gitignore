@@ -36,7 +36,7 @@ Thumbs.db
 console-cinema
 console-cinema.exe
 
-tmp
+tmp/
 .air.toml
 .clinerules/
 
