@@ -21,7 +21,10 @@ var exploreCmd = &cobra.Command{
 func explore(cmd *cobra.Command, args []string) {
 	app := tview.NewApplication()
 	inputField := tview.NewInputField().
-		SetLabel("Search YouTube: ")
+		SetLabel("Search YouTube: ").
+		SetLabelColor(tcell.ColorWhite).
+		SetFieldBackgroundColor(tcell.ColorWhite).
+		SetFieldTextColor(tcell.ColorBlack)
 
 	videoList := tview.NewList()
 	suggestionsList := tview.NewList().
