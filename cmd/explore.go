@@ -29,8 +29,8 @@ func explore(cmd *cobra.Command, args []string) {
 
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem(inputField, 0, 1, true).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(inputField, 1, 0, true).
 			AddItem(suggestionsList, 0, 1, false), 0, 1, true).
 		AddItem(videoList, 0, 2, false)
 
