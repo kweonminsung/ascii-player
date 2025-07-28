@@ -11,6 +11,7 @@ import (
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
+	ytdlp "github.com/kweonminsung/console-cinema/third_party/yt-dlp"
 )
 
 // AudioPlayer manages audio playback
@@ -77,8 +78,14 @@ func extractAudio(videoPath, audioPath string) error {
 }
 
 func extractAudioFromYouTube(videoURL, audioPath string) error {
+	executablePath, err := ytdlp.GetExecutablePath()
+	if err != nil {
+		return err
+	}
+	defer os.Remove(executablePath)
+
 	cmd := exec.Command(
-		"yt-dlp",
+		executablePath,
 		"--no-playlist",
 		"--quiet",
 		"--progress",

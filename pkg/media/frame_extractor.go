@@ -1,23 +1,15 @@
 package media
 
 import (
-	_ "embed"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 
+	ytdlp "github.com/kweonminsung/console-cinema/third_party/yt-dlp"
 	"gocv.io/x/gocv"
 )
-
-//go:embed yt-dlp/yt-dlp
-var ytDlpBinary []byte
-
-//go:embed yt-dlp/yt-dlp.exe
-var ytDlpBinaryWin []byte
 
 // FrameExtractor는 비디오 소스를 열고 프레임을 제어하는 기능을 제공합니다.
 type FrameExtractor struct {
@@ -34,30 +26,13 @@ type FrameExtractor struct {
 func NewFrameExtractor(source string, isYouTube bool) (*FrameExtractor, error) {
 	videoSource := source
 	if isYouTube {
-		// yt-dlp를 사용하여 가장 좋은 품질의 mp4 스트림 URL을 가져옵니다. (max 720p)
-		var binary []byte
-		var fileName string
-		if runtime.GOOS == "windows" {
-			binary = ytDlpBinaryWin
-			fileName = "yt-dlp.exe"
-		} else {
-			binary = ytDlpBinary
-			fileName = "yt-dlp"
-		}
-
-		tmpFile, err := os.CreateTemp("", fileName)
+		executablePath, err := ytdlp.GetExecutablePath()
 		if err != nil {
-			return nil, fmt.Errorf("failed to create temp file for yt-dlp: %w", err)
+			return nil, err
 		}
-		defer os.Remove(tmpFile.Name())
+		defer os.Remove(executablePath)
 
-		perm := fs.FileMode(0755)
-		if err := os.WriteFile(tmpFile.Name(), binary, perm); err != nil {
-			return nil, fmt.Errorf("failed to write yt-dlp binary to temp file: %w", err)
-		}
-		tmpFile.Close() // 파일을 닫아 다른 프로세스에서 실행할 수 있도록 합니다.
-
-		cmd := exec.Command(tmpFile.Name(), "-f", "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/best", "-g", source)
+		cmd := exec.Command(executablePath, "-f", "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/best", "-g", source)
 		output, err := cmd.Output()
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute embedded yt-dlp for url %s: %w", source, err)
