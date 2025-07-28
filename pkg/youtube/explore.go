@@ -15,6 +15,7 @@ type Video struct {
 	URL         string
 	Uploader    string
 	PublishedAt string
+	Views       string
 }
 
 func GetSuggestions(query string) []string {
@@ -162,11 +163,19 @@ func SearchYoutube(query string) []Video {
 					}
 				}
 
+				viewCount := "N/A"
+				if viewCountText, ok := videoRenderer["viewCountText"].(map[string]interface{}); ok && viewCountText != nil {
+					if simpleText, ok := viewCountText["simpleText"].(string); ok {
+						viewCount = simpleText
+					}
+				}
+
 				video := Video{
 					Title:       title,
 					URL:         "https://www.youtube.com/watch?v=" + videoId,
 					Uploader:    uploader,
 					PublishedAt: publishedTime,
+					Views:       viewCount,
 				}
 				videos = append(videos, video)
 			}
