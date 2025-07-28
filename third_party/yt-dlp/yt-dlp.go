@@ -19,12 +19,19 @@ var ytDlpBinaryWin []byte
 func GetExecutablePath() (string, error) {
 	var binary []byte
 	var fileName string
-	if runtime.GOOS == "windows" {
+
+	switch runtime.GOOS {
+	case "windows":
 		binary = ytDlpBinaryWin
 		fileName = "yt-dlp.exe"
-	} else {
+	case "darwin":
+		binary = ytDlpBinary
+		fileName = "yt-dlp_macos"
+	case "linux":
 		binary = ytDlpBinary
 		fileName = "yt-dlp"
+	default:
+		return "", fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 	}
 
 	tmpFile, err := os.CreateTemp("", fileName)
