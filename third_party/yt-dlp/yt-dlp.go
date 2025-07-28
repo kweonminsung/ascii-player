@@ -8,11 +8,14 @@ import (
 	"runtime"
 )
 
-//go:embed yt-dlp
-var ytDlpBinary []byte
-
 //go:embed yt-dlp.exe
 var ytDlpBinaryWin []byte
+
+//go:embed yt-dlp_macos
+var ytDlpBinaryMac []byte
+
+//go:embed yt-dlp
+var ytDlpBinary []byte
 
 // GetExecutablePath creates a temporary executable file for yt-dlp and returns its path.
 // The caller is responsible for removing the file when done.
@@ -25,7 +28,7 @@ func GetExecutablePath() (string, error) {
 		binary = ytDlpBinaryWin
 		fileName = "yt-dlp.exe"
 	case "darwin":
-		binary = ytDlpBinary
+		binary = ytDlpBinaryMac
 		fileName = "yt-dlp_macos"
 	case "linux":
 		binary = ytDlpBinary
