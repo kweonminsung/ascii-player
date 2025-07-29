@@ -11,7 +11,6 @@ import (
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
-	"github.com/kweonminsung/console-cinema/pkg/cache"
 	ytdlp "github.com/kweonminsung/console-cinema/third_party/yt-dlp"
 )
 
@@ -29,12 +28,8 @@ type AudioPlayer struct {
 
 // NewAudioPlayer creates a new AudioPlayer
 func NewAudioPlayer(videoPath string, isYouTube bool) (*AudioPlayer, error) {
-	tmpFile, err := cache.CreateTemp("temp_audio_*.mp3")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file for audio: %w", err)
-	}
-	tmpFile.Close()
-	audioPath := tmpFile.Name()
+	audioPath := fmt.Sprintf("temp_audio_%d.mp3", time.Now().UnixNano())
+	var err error
 
 	if isYouTube {
 		err = extractAudioFromYouTube(videoPath, audioPath)

@@ -25,17 +25,5 @@ func main() {
 
 	log.SetOutput(f)
 
-	// Clear tmp dir at the start of the program
-	if err := cache.ClearTmpDir(); err != nil {
-		log.Printf("Failed to clear tmp dir at start: %v", err)
-	}
-
-	// Defer clearing tmp dir until the program exits
-	defer func() {
-		if err := cache.ClearTmpDir(); err != nil {
-			log.Printf("Failed to clear tmp dir at exit: %v", err)
-		}
-	}()
-
 	cmd.Execute()
 }
