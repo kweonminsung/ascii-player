@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -316,19 +315,19 @@ func (p *Player) rewind() {
 }
 
 func (p *Player) playbackLoop() {
-	var getNextFrame func() (string, error)
+	var renderFrame func(tcell.Screen) error
 	var getFPS func() float64
 	var getCurrentFrame func() int
 	var getTotalFrames func() int
 
 	switch p.mode {
 	case "pixel":
-		getNextFrame = p.pixelPlayer.GetNextFrame
+		renderFrame = p.pixelPlayer.RenderNextFrameToScreen
 		getFPS = p.pixelPlayer.GetFPS
 		getCurrentFrame = p.pixelPlayer.GetCurrentFrame
 		getTotalFrames = p.pixelPlayer.GetTotalFrames
 	default:
-		getNextFrame = p.asciiPlayer.GetNextFrame
+		renderFrame = p.asciiPlayer.RenderNextFrameToScreen
 		getFPS = p.asciiPlayer.GetFPS
 		getCurrentFrame = p.asciiPlayer.GetCurrentFrame
 		getTotalFrames = p.asciiPlayer.GetTotalFrames
@@ -359,11 +358,11 @@ func (p *Player) playbackLoop() {
 		}
 		if !p.isPaused {
 			p.mutex.Lock()
-			frame, err := getNextFrame()
+			p.screen.Clear()
+			err := renderFrame(p.screen)
 			p.mutex.Unlock()
 			if err != nil {
 				if p.loop {
-					// Reset by reloading frames
 					if loadErr := p.LoadFrames(); loadErr != nil {
 						log.Printf("failed to reload frames for looping: %v", loadErr)
 						p.isPlaying = false
@@ -383,12 +382,11 @@ func (p *Player) playbackLoop() {
 				}
 			}
 
-			p.drawFrame(frame)
 			p.currentFrame++
 			p.frameCountSinceLastCheck++
 		}
 
-		if time.Since(p.lastFPSTime) >= (time.Second / 10) { // Update 10 times per second
+		if time.Since(p.lastFPSTime) >= (time.Second / 10) {
 			p.actualFPS = float64(p.frameCountSinceLastCheck) / time.Since(p.lastFPSTime).Seconds()
 			p.lastFPSTime = time.Now()
 			p.frameCountSinceLastCheck = 0
@@ -397,7 +395,6 @@ func (p *Player) playbackLoop() {
 				targetFPS := p.GetFPS()
 				if targetFPS > 0 && p.actualFPS > 0 {
 					targetRatio := p.actualFPS / targetFPS
-					// Smooth the ratio change
 					p.currentSpeedRatio = p.currentSpeedRatio*0.7 + targetRatio*0.3
 					if p.currentSpeedRatio < 0.1 {
 						p.currentSpeedRatio = 0.1
@@ -409,14 +406,6 @@ func (p *Player) playbackLoop() {
 
 		p.drawStatus(getCurrentFrame, getTotalFrames)
 		p.screen.Show()
-	}
-}
-
-func (p *Player) drawFrame(frame string) {
-	p.screen.Clear()
-	lines := strings.Split(frame, "\n")
-	for y, line := range lines {
-		p.drawString(0, y, line)
 	}
 }
 
@@ -432,12 +421,18 @@ func (p *Player) drawString(x, y int, str string) {
 				color := tcell.NewHexColor(int32(rgb))
 				style = style.Foreground(color)
 			}
-			i += 9 // Move index past the color tag
+			i += 9
 			continue
 		}
 		p.screen.SetContent(x, y, r, nil, style)
 		x++
 		i++
+	}
+}
+
+func (p *Player) drawStringPlain(x, y int, str string, style tcell.Style) {
+	for i, r := range str {
+		p.screen.SetContent(x+i, y, r, nil, style)
 	}
 }
 
@@ -539,9 +534,9 @@ func (p *Player) displayEndMessage() {
 	msg1 := "Playback Finished!"
 	msg2 := "Do you want to restart?"
 	msg3 := "[R] Restart  [Q] Quit"
-	p.drawString(x+(boxWidth-len(msg1))/2, y+2, msg1)
-	p.drawString(x+(boxWidth-len(msg2))/2, y+3, msg2)
-	p.drawString(x+(boxWidth-len(msg3))/2, y+5, msg3)
+	p.drawStringPlain(x+(boxWidth-len(msg1))/2, y+2, msg1, style)
+	p.drawStringPlain(x+(boxWidth-len(msg2))/2, y+3, msg2, style)
+	p.drawStringPlain(x+(boxWidth-len(msg3))/2, y+5, msg3, style)
 
 	p.screen.Show()
 }

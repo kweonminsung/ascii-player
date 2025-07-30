@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/kweonminsung/console-cinema/pkg/media"
 	"github.com/kweonminsung/console-cinema/pkg/types"
 )
@@ -56,12 +57,13 @@ func (p *PixelPlayer) GetFrameAt(seekTime time.Duration) (string, error) {
 		return "", fmt.Errorf("got empty frame at %v", seekTime)
 	}
 
-	pixelArt, err := p.converter.Convert(frame, p.config.Width, p.config.Height, p.config.Color)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert frame to pixel art: %v", err)
-	}
+	// This function is deprecated because Convert is no longer available.
+	// pixelArt, err := p.converter.Convert(frame, p.config.Width, p.config.Height, p.config.Color)
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to convert frame to pixel art: %v", err)
+	// }
 
-	return pixelArt, nil
+	return "", nil
 }
 
 // PlayConsecutiveFrames plays consecutive frames as ANSI-colored pixel art in the console
@@ -80,7 +82,8 @@ func (p *PixelPlayer) PlayConsecutiveFrames(frameCount int) error {
 			break
 		}
 
-		pixelArt, err := p.converter.Convert(frame, p.config.Width, p.config.Height, p.config.Color)
+		// This function is deprecated because Convert is no longer available.
+		// pixelArt, err := p.converter.Convert(frame, p.config.Width, p.config.Height, p.config.Color)
 		frame.Close()
 
 		if err != nil {
@@ -89,7 +92,7 @@ func (p *PixelPlayer) PlayConsecutiveFrames(frameCount int) error {
 		}
 
 		// Clear terminal and print pixel art
-		fmt.Printf("\033[2J\033[H%s", pixelArt)
+		// fmt.Printf("\033[2J\033[H%s", pixelArt)
 		time.Sleep(frameInterval)
 	}
 
@@ -132,25 +135,6 @@ func (p *PixelPlayer) UpdateSize(width, height int) {
 	p.config.Height = height
 }
 
-// GetNextFrame reads the next frame and converts it to pixel art.
-func (p *PixelPlayer) GetNextFrame() (string, error) {
-	frame, err := p.extractor.ReadNextFrame()
-	if err != nil {
-		return "", fmt.Errorf("could not read next frame: %v", err)
-	}
-	defer frame.Close()
-
-	if frame.Empty() {
-		return "", fmt.Errorf("got empty frame")
-	}
-
-	pixelArt, err := p.converter.Convert(frame, p.config.Width, p.config.Height, p.config.Color)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert frame to pixel art: %v", err)
-	}
-
-	return pixelArt, nil
-}
 
 // Seek seeks the video by the given duration.
 func (p *PixelPlayer) Seek(duration time.Duration) {
@@ -175,4 +159,19 @@ func (p *PixelPlayer) GetTotalFrames() int {
 // GetPosition returns the current position of the video.
 func (p *PixelPlayer) GetPosition() time.Duration {
 	return p.extractor.GetPosition()
+}
+
+// RenderNextFrameToScreen reads the next frame and renders it directly to the tcell screen.
+func (p *PixelPlayer) RenderNextFrameToScreen(screen tcell.Screen) error {
+	frame, err := p.extractor.ReadNextFrame()
+	if err != nil {
+		return fmt.Errorf("could not read next frame: %v", err)
+	}
+	defer frame.Close()
+
+	if frame.Empty() {
+		return fmt.Errorf("got empty frame")
+	}
+
+	return p.converter.ConvertToScreen(frame, p.config.Width, p.config.Height, p.config.Color, screen)
 }
