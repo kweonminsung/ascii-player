@@ -171,3 +171,8 @@ func (p *PixelPlayer) GetCurrentFrame() int {
 func (p *PixelPlayer) GetTotalFrames() int {
 	return p.extractor.GetTotalFrames()
 }
+
+// GetPosition returns the current position of the video.
+func (p *PixelPlayer) GetPosition() time.Duration {
+	return p.extractor.GetPosition()
+}

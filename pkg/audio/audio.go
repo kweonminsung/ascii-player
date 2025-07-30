@@ -181,6 +181,32 @@ func (ap *AudioPlayer) Seek(duration time.Duration) error {
 	return nil
 }
 
+// SeekAbsolute seeks the audio to an absolute position specified by the duration.
+func (ap *AudioPlayer) SeekAbsolute(duration time.Duration) error {
+	speaker.Lock()
+	defer speaker.Unlock()
+
+	if duration < 0 {
+		duration = 0
+	}
+
+	newPosition := ap.format.SampleRate.N(duration)
+	if ap.streamer.Len() > 0 && newPosition >= ap.streamer.Len() {
+		newPosition = ap.streamer.Len() - 1
+	}
+
+	if err := ap.streamer.Seek(newPosition); err != nil {
+		return err
+	}
+
+	// Re-create the resampler to clear its internal state after a seek.
+	ap.resampler = beep.Resample(4, ap.format.SampleRate, ap.format.SampleRate, ap.streamer)
+	ap.resampler.SetRatio(ap.speed)
+	ap.ctrl.Streamer = ap.resampler
+
+	return nil
+}
+
 // Close closes the audio player and cleans up resources
 func (ap *AudioPlayer) Close() {
 	if ap.closer != nil {

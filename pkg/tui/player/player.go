@@ -265,20 +265,25 @@ func (p *Player) seek(duration time.Duration) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
+	var newPosition time.Duration
+
 	switch p.mode {
 	case "pixel":
 		if p.pixelPlayer != nil {
 			p.pixelPlayer.Seek(duration)
+			newPosition = p.pixelPlayer.GetPosition()
 		}
 	case "ascii":
 		fallthrough
 	default:
 		if p.asciiPlayer != nil {
 			p.asciiPlayer.Seek(duration)
+			newPosition = p.asciiPlayer.GetPosition()
 		}
 	}
+
 	if p.audioPlayer != nil {
-		if err := p.audioPlayer.Seek(duration); err != nil {
+		if err := p.audioPlayer.SeekAbsolute(newPosition); err != nil {
 			log.Printf("failed to seek audio: %v", err)
 		}
 	}
@@ -329,15 +334,12 @@ func (p *Player) playbackLoop() {
 		getTotalFrames = p.asciiPlayer.GetTotalFrames
 	}
 
-	fps := p.fps
-	if fps <= 0 {
-		fps = int(getFPS())
-		if fps <= 0 {
-			fps = 30
-		}
+	targetFPS := getFPS()
+	if targetFPS <= 0 {
+		targetFPS = 30
 	}
 
-	ticker := time.NewTicker(time.Second / time.Duration(fps))
+	ticker := time.NewTicker(time.Second / time.Duration(targetFPS))
 	defer ticker.Stop()
 
 	p.isPlaying = true

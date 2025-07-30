@@ -43,11 +43,11 @@ func GetExecutablePath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file for yt-dlp: %w", err)
 	}
-	defer tmpFile.Close() // Ensure the file handle is closed
 
 	// Write the binary data to the temporary file.
 	// Note: os.WriteFile is simpler but we already have a file handle.
 	if _, err := tmpFile.Write(binary); err != nil {
+		tmpFile.Close()           // Close the file before removing
 		os.Remove(tmpFile.Name()) // Clean up on error
 		return "", fmt.Errorf("failed to write yt-dlp binary to temp file: %w", err)
 	}
